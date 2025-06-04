@@ -1,0 +1,60 @@
+services:
+  issuance-oracle:
+    build: .
+    container_name: service-quality-oracle
+    image: service-quality-oracle:latest
+
+    volumes:
+      # Mount data directory to store data
+      - ./data:/app/data
+      - ./logs:/app/logs
+    
+      # Mount config file as read-only
+      - ./config.toml:/app/config.toml:ro
+
+      # Mount Google credentials file if using file-based auth (optional)
+      - ./credentials.json:/app/credentials.json:ro
+
+    environment:
+      - PYTHONPATH=/app
+      - RUN_ON_STARTUP=true
+      - TZ=UTC
+      
+      # Setup enviroment variables
+      # Environment variables go into process memory for this specific container only
+      # Meaning they can't be accessed by other containers or processes outside of this container
+      # More secure than storing secrets in a file that can be accessed by other containers or processes
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - BLOCKCHAIN_PRIVATE_KEY=${BLOCKCHAIN_PRIVATE_KEY}
+      - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
+      - ARBITRUM_API_KEY=${ARBITRUM_API_KEY}
+      - STUDIO_API_KEY=${STUDIO_API_KEY}
+      - STUDIO_DEPLOY_KEY=${STUDIO_DEPLOY_KEY}
+
+    # Block processes from gaining higher privileges/capabilities
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          memory: 512M
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, time; assert os.path.exists('/app/healthcheck') and time.time() - os.path.getmtime('/app/healthcheck') < 3600, 'Healthcheck failed'"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 1m
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

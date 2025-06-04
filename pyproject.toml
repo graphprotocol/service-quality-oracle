@@ -1,0 +1,51 @@
+# This file is used to configure project settings and tools for the Service Quality Oracle project.
+# It defines configurations for linting, formatting, and other development tools to maintain code quality
+# and consistency across the project. Specifically, it sets up rules for Ruff, a fast Python linter and
+# formatter, to enforce coding standards, manage import sorting, and handle code complexity.
+
+[tool.ruff]
+# Allow line lengths up to 115 characters. 
+line-length = 115
+target-version = "py39"
+
+# Enable auto-fixing for most issues, but not line length
+fix = true
+fix-only = false
+
+[tool.ruff.lint]
+# Enable rules including isort (I) for import sorting and additional fixes
+select = ["E", "F", "B", "I", "UP", "N", "C", "W"]
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".git",
+    ".ruff_cache",
+    "venv",
+    "__pycache__",
+]
+
+# Prevent auto-fixing line length issues
+unfixable = ["E501"]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Specify rules to ignore in specific files
+[tool.ruff.lint.per-file-ignores]
+# Ignore E402 (import not at top) in scripts and specific modules
+"scripts/test_*.py" = ["E402"]
+"src/models/issuance_eligibility_oracle_core.py" = ["E402"]
+
+# Use unsafe fixes to address typing and other modernization issues
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.lint.mccabe]
+# Unlike Flake8, default to a complexity level of 10.
+max-complexity = 10
+
+[tool.ruff.format]
+# Format SQL code in strings/docstrings
+docstring-code-format = true
+quote-style = "double"
+indent-style = "space"

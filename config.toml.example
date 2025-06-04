@@ -1,0 +1,45 @@
+# Service Quality Oracle Configuration
+# This file separates sensitive secrets from non-sensitive configuration values
+
+# =============================================================================
+# NON-SENSITIVE CONFIGURATION
+# =============================================================================
+
+[bigquery]
+BIGQUERY_LOCATION_ID = ""
+BIGQUERY_PROJECT_ID = ""
+BIGQUERY_DATASET_ID = ""
+
+[blockchain]
+BLOCKCHAIN_CONTRACT_ADDRESS = ""
+BLOCKCHAIN_FUNCTION_NAME = ""
+BLOCKCHAIN_CHAIN_ID = 
+BLOCKCHAIN_RPC_URLS = [
+    "",
+    "",
+    "",
+    ""
+]
+
+[scheduling]
+SCHEDULED_RUN_TIME = "10:00"
+
+[subgraph]
+SUBGRAPH_URL_PRE_PRODUCTION = ""
+SUBGRAPH_URL_PRODUCTION = ""
+
+[processing]
+BATCH_SIZE = 125
+MAX_AGE_BEFORE_DELETION = 120
+
+# =============================================================================
+# SENSITIVE CONFIGURATION
+# =============================================================================
+
+[secrets]
+GOOGLE_APPLICATION_CREDENTIALS = "$GOOGLE_APPLICATION_CREDENTIALS"
+BLOCKCHAIN_PRIVATE_KEY = "$BLOCKCHAIN_PRIVATE_KEY"
+ETHERSCAN_API_KEY = "$ETHERSCAN_API_KEY" 
+ARBITRUM_API_KEY = "$ARBITRUM_API_KEY"
+STUDIO_API_KEY = "$STUDIO_API_KEY"
+STUDIO_DEPLOY_KEY = "$STUDIO_DEPLOY_KEY"

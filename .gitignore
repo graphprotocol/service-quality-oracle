@@ -1,0 +1,16 @@
+# Ignore sensitive configuration files and credentials
+.env
+config.toml
+
+# Ignore virtual environments
+venv/
+
+# Ignore Docker volumes and data
+data/
+postgres_data/
+logs/
+subgraph/
+contracts/
+
+# Ignore Ruff
+.ruff_cache/
