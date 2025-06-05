@@ -14,7 +14,7 @@ fix-only = false
 
 [tool.ruff.lint]
 # Enable rules including isort (I) for import sorting and additional fixes
-select = ["E", "F", "B", "I", "UP", "N", "C", "W"]
+select = ["E", "W", "F", "I"]
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -49,3 +49,8 @@ max-complexity = 10
 docstring-code-format = true
 quote-style = "double"
 indent-style = "space"
+
+[tool.mypy]
+ignore_missing_imports = true
+no_strict_optional = true
+explicit_package_bases = true

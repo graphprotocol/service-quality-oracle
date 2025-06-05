@@ -57,7 +57,7 @@ jobs:
           fi
 
       - name: Run type checking
-        run: mypy src/ --ignore-missing-imports --no-strict-optional
+        run: mypy src/
 
       - name: Validate Python syntax
         run: find src/ -name "*.py" -exec python -m py_compile {} \;
