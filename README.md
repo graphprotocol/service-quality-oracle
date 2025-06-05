@@ -65,19 +65,28 @@ For details: [.github/README.md](./.github/README.md)
 
 For contributors working on the codebase:
 
-1. **Run local quality checks**:
+**Before pushing:**
    ```bash
-   # Use the custom ruff script (includes SQL formatting and aggressive linting)
+   # Setup venv
+   python3 -m venv venv
+   source venv/bin/activate
+
+   # Install requirements
+   pip install -r requirements.txt
+
+   # Use the custom ruff script for linting (includes SQL formatting and aggressive linting)
    ./scripts/ruff_check_format_assets.sh
-
-   # Type checking
-   mypy src/ --ignore-missing-imports
-
-   # Security scanning
-   bandit -r src/
    ```
 
-**Note:** The CI/CD pipeline uses the custom `ruff_check_format_assets.sh` script which includes SQL whitespace fixes and more aggressive formatting than standard ruff. Always run this script locally before pushing to avoid CI failures.
+**Optional checks:**
+```bash
+mypy src/ --ignore-missing-imports
+bandit -r src/
+```
+
+> **Note:** The CI/CD pipeline uses the custom `ruff_check_format_assets.sh` script which includes SQL whitespace fixes and more aggressive formatting than standard ruff. 
+> 
+> Always run this script locally before pushing to avoid CI failures.
 
 ## License
 

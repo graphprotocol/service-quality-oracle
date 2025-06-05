@@ -22,9 +22,17 @@
 ## Local Development
 
 **Before pushing:**
-```bash
-./scripts/ruff_check_format_assets.sh
-```
+   ```bash
+   # Setup venv
+   python3 -m venv venv
+   source venv/bin/activate
+
+   # Install requirements
+   pip install -r requirements.txt
+
+   # Use the custom ruff script for linting (includes SQL formatting and aggressive linting)
+   ./scripts/ruff_check_format_assets.sh
+   ```
 
 **Optional checks:**
 ```bash

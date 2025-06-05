@@ -54,7 +54,7 @@ class BigQueryProvider:
                 logger.warning(f"GOOGLE_APPLICATION_CREDENTIALS path not found: {creds_path}")
                 logger.warning("Falling back to gcloud CLI user credentials.")
             else:
-                logger.info(f"Using enviroment variable $GOOGLE_APPLICATION_CREDENTIALS for authentication.")
+                logger.info("Using enviroment variable $GOOGLE_APPLICATION_CREDENTIALS for authentication.")
         else:
             logger.warning("GOOGLE_APPLICATION_CREDENTIALS not set, falling back to gcloud CLI user credentials")
 

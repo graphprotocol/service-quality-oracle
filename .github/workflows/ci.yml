@@ -97,4 +97,4 @@ jobs:
           docker rm test-container
 
       - name: Validate Docker Compose
-        run: docker-compose config 
+        run: docker compose config 

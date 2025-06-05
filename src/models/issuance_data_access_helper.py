@@ -11,9 +11,9 @@ from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
+from tenacity import retry, stop_after_attempt, wait_exponential
 from web3 import Web3
 from web3.contract import Contract
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 # Import data providers
 from src.models.bigquery_data_access_provider import BigQueryProvider
@@ -21,7 +21,7 @@ from src.models.subgraph_data_access_provider import SubgraphProvider
 
 # Import configuration and key validation
 from src.utils.config_loader import ConfigLoader, ConfigurationError
-from src.utils.key_validator import validate_and_format_private_key, KeyValidationError
+from src.utils.key_validator import KeyValidationError, validate_and_format_private_key
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 def _validate_required_fields(data: dict, required_fields: list[str], context: str) -> None:
     """
     Helper function to validate required fields are present in a dictionary.
-    
+
     Args:
         data: Dictionary to validate
         required_fields: List of required fields
@@ -96,7 +96,13 @@ def _load_config_and_return_validated() -> dict[str, str | int | list]:
                 ) from e
 
         # Validate blockchain configuration contains all required fields
-        required_fields = ["private_key", "contract_address", "contract_function", "chain_id", "scheduled_run_time"]
+        required_fields = [
+            "private_key",
+            "contract_address",
+            "contract_function",
+            "chain_id",
+            "scheduled_run_time",
+        ]
         _validate_required_fields(config, required_fields, "Missing required blockchain configuration")
 
         # Validate RPC providers
@@ -133,9 +139,7 @@ def _get_path_to_project_root() -> Path:
         current_path = current_path.parent
 
     # If we got here, something is wrong
-    raise FileNotFoundError(
-        "Could not find project root directory. Investigate."
-    )
+    raise FileNotFoundError("Could not find project root directory. Investigate.")
 
 
 def _parse_and_validate_credentials_json(creds_env: str) -> dict:
@@ -265,7 +269,7 @@ def _setup_google_credentials_in_memory_from_env_var():
             if creds_data is not None:
                 creds_data.clear()
                 del creds_data
-    
+
     else:
         logger.warning(
             "GOOGLE_APPLICATION_CREDENTIALS is not set or not in the correct format. "
@@ -339,7 +343,7 @@ def _clean_old_date_directories(data_output_dir: Path, max_age_before_deletion: 
             if age_days > max_age_before_deletion:
                 logger.info(f"Removing old data directory: {item} ({age_days} days old)")
                 shutil.rmtree(item)
-        
+
         # Skip directories that don't match date format
         except ValueError:
             continue
@@ -423,7 +427,7 @@ def _setup_transaction_account(private_key: str, w3) -> tuple[str, object]:
         account = w3.eth.account.from_key(private_key)
         logger.info(f"Using account: {account.address}")
         return account.address
-    
+
     # If the account cannot be retrieved, log the error and raise an exception
     except Exception as e:
         logger.error(f"Failed to retrieve account from private key: {str(e)}")

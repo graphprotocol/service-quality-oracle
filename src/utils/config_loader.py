@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 class ConfigurationError(Exception):
     """Raised when configuration loading fails."""
+
     pass
 
 

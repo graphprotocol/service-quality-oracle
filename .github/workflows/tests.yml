@@ -1,4 +1,4 @@
-name: Test Suite
+name: Tests
 
 on:
   pull_request:
@@ -62,7 +62,7 @@ jobs:
           pip install pytest
 
       - name: Validate Docker setup
-        run: docker-compose config > /dev/null
+        run: docker compose config > /dev/null
 
       - name: Run integration tests
         run: |
