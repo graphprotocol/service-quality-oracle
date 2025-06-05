@@ -34,7 +34,8 @@ aiohttp>=3.9.0  # For async HTTP requests (used by web3)
 pytest>=8.0.0
 pytest-cov>=6.0.0
 pytest-mock>=3.0.0
+mypy>=1.0.0
 
 # Linting and formatting
-ruff==0.6.8
+ruff>=0.6.0
 pip==25.1
