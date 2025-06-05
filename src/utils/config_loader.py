@@ -146,33 +146,50 @@ class ConfigLoader:
         Raises:
             ConfigurationError: If any required environment variables are missing
         """
+        # Load the config file
         try:
             with open(self.config_path, "rb") as f:
                 config = tomllib.load(f)
+
+        # If there is an error, raise a ConfigurationError
         except Exception as e:
             raise ConfigurationError(f"Cannot validate env vars - config error: {e}") from e
 
-        missing_vars = []
+        # Collect all missing environment variables from config object
+        missing_vars = self._collect_missing_env_vars(config)
 
-        def check_env_vars(obj):
-            if isinstance(obj, str):
-                env_vars = self._env_var_pattern.findall(obj)
-                for var in env_vars:
-                    if os.getenv(var) is None:
-                        missing_vars.append(var)
-            elif isinstance(obj, dict):
-                for value in obj.values():
-                    check_env_vars(value)
-            elif isinstance(obj, list):
-                for item in obj:
-                    check_env_vars(item)
-
-        check_env_vars(config)
-
+        # If there are missing variables, raise a ConfigurationError
         if missing_vars:
             raise ConfigurationError(
                 f"Missing required environment variables: {', '.join(sorted(set(missing_vars)))}"
             )
+
+    def _collect_missing_env_vars(self, obj: Any) -> list[str]:
+        """
+        Collect all missing environment variables from config object.
+
+        Args:
+            obj: config object to collect missing environment variables from
+
+        Returns:
+            list of missing environment variables (if any)
+        """
+        missing_vars = []
+        # Collect the missing enviroment vaiables using the appropriate speicifc method
+        if isinstance(obj, str):
+            env_vars = self._env_var_pattern.findall(obj)
+            for var in env_vars:
+                if os.getenv(var) is None:
+                    missing_vars.append(var)
+        elif isinstance(obj, dict):
+            for value in obj.values():
+                missing_vars.extend(self._collect_missing_env_vars(value))
+        elif isinstance(obj, list):
+            for item in obj:
+                missing_vars.extend(self._collect_missing_env_vars(item))
+
+        # After all the missing variables have been collected, return the list
+        return missing_vars
 
     def get_flat_config(self) -> dict[str, Any]:
         """
