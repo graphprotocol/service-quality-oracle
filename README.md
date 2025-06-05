@@ -95,22 +95,23 @@ bandit -r src/
 
 ## TODO List (only outstanding TODOs)
 
-### Testing & Quality Assurance
-- [ ] Create unit tests for all components
+### 1. Monitoring features
 - [ ] Slack monitoring integration
   - [ ] Add notification logic for failed runs so we are aware in a slack channel
   - [ ] Initially we can notify for successful runs too
-- [ ] Create integration tests for the entire pipeline
-- [ ] Implement mocking for blockchain interactions in test environment
-- [ ] Perform security review of code and dependencies
-- [ ] Ensure unused files, functions & dependencies are removed from codebase
 
-### Documentation
-
-- [ ] Documentation of all major components
-- [ ] Document operational procedures
-
-### Production Readiness
+### 2. Production Readiness
 - [ ] Check error recovery mechanisms to see if they could be improved (RPC failover, retry logic)
 - [ ] Verify health check endpoints or processes (Docker healthcheck)
 
+### 3. Testing
+- [ ] Create unit tests for all components
+- [ ] Create integration tests for the entire pipeline
+- [ ] Security review of code and dependencies
+
+### 4. Documentation
+- [ ] Documentation of all major components
+- [ ] Document operational procedures
+
+## 5. Last check
+- [ ] Ensure unused files, functions & dependencies are removed from codebase
