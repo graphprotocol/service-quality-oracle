@@ -40,7 +40,6 @@ class BigQueryProvider:
         """
         Execute a read query on Google BigQuery and return the results as a pandas DataFrame.
         Retries up to stop_after_attempt times on connection errors with exponential backoff.
-
         Note:
             This method uses the bigframes.pandas.read_gbq function to execute the query. It relies on
             Application Default Credentials (ADC) for authentication, primarily using the
@@ -57,7 +56,6 @@ class BigQueryProvider:
                 logger.info("Using enviroment variable $GOOGLE_APPLICATION_CREDENTIALS for authentication.")
         else:
             logger.warning("GOOGLE_APPLICATION_CREDENTIALS not set, falling back to gcloud CLI user credentials")
-
         # Execute the query with retry logic
         return cast(DataFrame, bpd.read_gbq(query).to_pandas())
 
@@ -71,19 +69,15 @@ class BigQueryProvider:
             - Response latency <5,000ms,
             - Blocks behind <50,000,
             - Subgraph has >=500 GRT signal at query time
-
         Note: The 500 GRT curation signal requirement is not currently implemented.
-
         Args:
             start_date (date): The start date for the data range.
             end_date (date): The end date for the data range.
-
         Returns:
             str: SQL query string for indexer eligibility data.
         """
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
-
         return f"""
         WITH
         -- Get daily query metrics per indexer
@@ -107,7 +101,6 @@ class BigQueryProvider:
             GROUP BY
                 day_partition, indexer
         ),
-
         -- Determine which days count as 'online' (>= 1 good query on >= 10 subgraphs)
         DaysOnline AS (
             SELECT
@@ -120,7 +113,6 @@ class BigQueryProvider:
             FROM
                 DailyMetrics
         ),
-
         -- Calculate unique subgraphs served with at least one good query
         UniqueSubgraphs AS (
             SELECT
@@ -136,7 +128,6 @@ class BigQueryProvider:
             GROUP BY
                 indexer
         ),
-
         -- Calculate overall metrics per indexer
         IndexerMetrics AS (
             SELECT
@@ -154,7 +145,6 @@ class BigQueryProvider:
             GROUP BY
                 d.indexer, ds.unique_good_response_subgraphs
         )
-
         -- Final result with eligibility determination
         SELECT
             indexer,
@@ -176,15 +166,12 @@ class BigQueryProvider:
         """
         Fetch data from Google BigQuery, used to determine indexer issuance eligibility, and compute
         each indexer's issuance eligibility status.
-
         Depends on:
             - _get_indexer_eligibility_query()
             - _read_gbq_dataframe()
-
         Args:
             start_date (date): The start date for the data to fetch from BigQuery.
             end_date (date): The end date for the data to fetch from BigQuery.
-
         Returns:
             DataFrame: DataFrame containing a range of metrics for each indexer.
                 The DataFrame contains the following columns:
@@ -197,6 +184,5 @@ class BigQueryProvider:
         """
         # Construct the query
         query = self._get_indexer_eligibility_query(start_date, end_date)
-
         # Return the results df
         return self._read_gbq_dataframe(query)
