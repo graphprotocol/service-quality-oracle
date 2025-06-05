@@ -33,7 +33,7 @@ jobs:
 
       - name: Run tests
         run: |
-          if [ -d "tests" ] && [ "$(find tests -name '*.py' -not -name '__init__.py' | wc -l)" -gt 0 ]; then
+          if [ -d "tests" ] && [ "$(find tests -name "test_*.py" -o -name "*_test.py" | wc -l)" -gt 0 ]; then
             echo "Running tests"
             pytest tests/ -v --cov=src --cov-report=term-missing -p no:ethereum
           else
