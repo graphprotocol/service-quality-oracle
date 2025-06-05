@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # =============================================================================
+  # CODE QUALITY & BUILD VALIDATION
+  # =============================================================================
+  code-quality:
+    name: Code Quality & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy tomli
+          pip install pandas web3 tenacity
+
+      - name: Run code formatting and linting
+        run: |
+          chmod +x scripts/ruff_check_format_assets.sh
+          ./scripts/ruff_check_format_assets.sh
+
+      - name: Check for uncommitted changes
+        run: |
+          if ! git diff --quiet; then
+            echo "Code formatting changes detected. Run ./scripts/ruff_check_format_assets.sh locally and commit changes."
+            git diff --name-only
+            exit 1
+          fi
+
+      - name: Run type checking
+        run: mypy src/ --ignore-missing-imports --no-strict-optional
+
+      - name: Validate Python syntax
+        run: find src/ -name "*.py" -exec python -m py_compile {} \;
+
+      - name: Test critical imports
+        run: |
+          cd src
+          python -c "
+          import sys; sys.path.insert(0, '..')
+          from src.utils.config_loader import load_config
+          from src.utils.key_validator import validate_and_format_private_key
+          print('Core modules import successfully')
+          "
+
+      - name: Validate configuration
+        run: |
+          python -c "
+          import tomli
+          with open('config.toml.example', 'rb') as f:
+              config = tomli.load(f)
+          required = ['bigquery', 'blockchain', 'scheduling', 'secrets']
+          for section in required:
+              if section not in config:
+                  raise ValueError(f'Missing section: {section}')
+          print('Configuration valid')
+          "
+
+  # =============================================================================
+  # DOCKER BUILD VALIDATION
+  # =============================================================================
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and test Docker image
+        run: |
+          docker build -t service-quality-oracle:test .
+          docker create --name test-container service-quality-oracle:test
+          docker rm test-container
+
+      - name: Validate Docker Compose
+        run: docker-compose config 

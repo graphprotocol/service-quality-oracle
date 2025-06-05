@@ -28,6 +28,12 @@ The application follows this data flow:
 
 2. **Blockchain Publication**: The eligible indexers list from step 1 is directly posted on-chain to a smart contract. Batching of transactions is performed if necessary.
 
+## CI/CD Pipeline
+
+Automated quality checks and security scanning via GitHub Actions. Run `./scripts/ruff_check_format_assets.sh` locally before pushing.
+
+For details: [.github/README.md](./.github/README.md)
+
 ## Getting Started
 
 ### Quick Start with Docker
@@ -55,6 +61,23 @@ The application follows this data flow:
    docker-compose ps
    ```
 
+### Development Workflow
+
+For contributors working on the codebase:
+
+1. **Run local quality checks**:
+   ```bash
+   # Use the custom ruff script (includes SQL formatting and aggressive linting)
+   ./scripts/ruff_check_format_assets.sh
+
+   # Type checking
+   mypy src/ --ignore-missing-imports
+
+   # Security scanning
+   bandit -r src/
+   ```
+
+**Note:** The CI/CD pipeline uses the custom `ruff_check_format_assets.sh` script which includes SQL whitespace fixes and more aggressive formatting than standard ruff. Always run this script locally before pushing to avoid CI failures.
 
 ## License
 
@@ -63,12 +86,6 @@ The application follows this data flow:
 
 ## TODO List (only outstanding TODOs)
 
-### Environment variables
-- [ ] Load and securely manage secrets
-
-### Smart Contract Integration
-- [ ] Further verification steps to confirm successful on-chain updates
-
 ### Testing & Quality Assurance
 - [ ] Create unit tests for all components
 - [ ] Slack monitoring integration
@@ -76,7 +93,6 @@ The application follows this data flow:
   - [ ] Initially we can notify for successful runs too
 - [ ] Create integration tests for the entire pipeline
 - [ ] Implement mocking for blockchain interactions in test environment
-- [ ] CI/CD pipeline?
 - [ ] Perform security review of code and dependencies
 - [ ] Ensure unused files, functions & dependencies are removed from codebase
 

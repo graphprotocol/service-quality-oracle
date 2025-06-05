@@ -1,0 +1,74 @@
+name: Test Suite
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # =============================================================================
+  # UNIT TESTS
+  # =============================================================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-mock
+
+      - name: Run tests
+        run: |
+          if [ -d "tests" ] && [ "$(find tests -name '*.py' -not -name '__init__.py' | wc -l)" -gt 0 ]; then
+            echo "Running tests"
+            pytest tests/ -v --cov=src --cov-report=term-missing
+          else
+            echo "No tests found - create files in tests/ directory to run tests"
+          fi
+
+  # =============================================================================
+  # INTEGRATION TESTS
+  # =============================================================================
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Validate Docker setup
+        run: docker-compose config > /dev/null
+
+      - name: Run integration tests
+        run: |
+          if [ -d "tests/integration" ] && [ "$(find tests/integration -name '*.py' -not -name '__init__.py' | wc -l)" -gt 0 ]; then
+            echo "Running integration tests"
+            pytest tests/integration/ -v
+          else
+            echo "No integration tests found - create files in tests/integration/ directory"
+          fi 
