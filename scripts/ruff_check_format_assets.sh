@@ -8,10 +8,17 @@ if [ ! -f "requirements.txt" ]; then
     exit 1
 fi
 
-# Fix SQL whitespace issues before running ruff
+# Fix SQL whitespace issues before running ruff (Linux/macOS compatible)
 echo "Fixing SQL whitespace issues in BigQuery provider..."
-find src/models -name "*.py" -type f -exec sed -i '' -E 's/([A-Z]+) +$/\1/g' {} \;
-find src/models -name "*.py" -type f -exec sed -i '' -E 's/^( +)$//' {} \;
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    find src/models -name "*.py" -type f -exec sed -i '' -E 's/([A-Z]+) +$/\1/g' {} \;
+    find src/models -name "*.py" -type f -exec sed -i '' -E '/^[[:space:]]*$/d' {} \;
+else
+    # Linux (CI environment)
+    find src/models -name "*.py" -type f -exec sed -i -E 's/([A-Z]+) +$/\1/g' {} \;
+    find src/models -name "*.py" -type f -exec sed -i -E '/^[[:space:]]*$/d' {} \;
+fi
 echo "SQL whitespace issues fixed!"
 
 # Run ruff check with auto-fix, including unsafe fixes for typing annotations
