@@ -14,15 +14,15 @@ Benefits:
 import logging
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
-# TODO: implement this in the requirements.txt file?
 # Handle Python version compatibility for TOML loading
-try:
-    import tomllib  # Python 3.11+
-except ImportError:
-    import tomli as tomllib  # Python < 3.11
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 logger = logging.getLogger(__name__)
 
