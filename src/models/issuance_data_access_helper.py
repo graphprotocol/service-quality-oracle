@@ -479,14 +479,18 @@ def _build_transaction_params(
     tx_params = {"from": sender_address, "nonce": nonce, "chainId": chain_id, "gas": gas_limit}
     # Set gas prices (higher for replacement transactions)
     if replace:
-        tx_params["maxFeePerGas"] = base_fee * 4 + max_priority_fee * 2
-        tx_params["maxPriorityFeePerGas"] = max_priority_fee * 2
-        logger.info(f"High gas for replacement: {int(tx_params['maxFeePerGas'])/1e9:.2f} gwei")
+        max_fee_per_gas = base_fee * 4 + max_priority_fee * 2
+        max_priority_fee_per_gas = max_priority_fee * 2
+        tx_params["maxFeePerGas"] = max_fee_per_gas
+        tx_params["maxPriorityFeePerGas"] = max_priority_fee_per_gas
+        logger.info(f"High gas for replacement: {max_fee_per_gas/1e9:.2f} gwei")
     # If we are not replacing a pending transaction, use a lower gas price
     else:
-        tx_params["maxFeePerGas"] = base_fee * 2 + max_priority_fee
-        tx_params["maxPriorityFeePerGas"] = max_priority_fee
-        logger.info(f"Standard gas: {int(tx_params['maxFeePerGas'])/1e9:.2f} gwei")
+        max_fee_per_gas = base_fee * 2 + max_priority_fee
+        max_priority_fee_per_gas = max_priority_fee
+        tx_params["maxFeePerGas"] = max_fee_per_gas
+        tx_params["maxPriorityFeePerGas"] = max_priority_fee_per_gas
+        logger.info(f"Standard gas: {max_fee_per_gas/1e9:.2f} gwei")
     logger.info(f"Transaction parameters: nonce={nonce}, gas={gas_limit}, chain_id={chain_id}")
     return tx_params
 

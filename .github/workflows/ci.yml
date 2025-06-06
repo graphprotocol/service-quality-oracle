@@ -35,8 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff mypy tomli
-          pip install pandas web3 tenacity
+          pip install -r requirements.txt
 
       - name: Run code formatting and linting
         run: |

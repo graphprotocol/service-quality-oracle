@@ -29,7 +29,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-mock
 
       - name: Run tests
         run: |
@@ -60,7 +59,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest
 
       - name: Validate Docker setup
         run: docker compose config > /dev/null
