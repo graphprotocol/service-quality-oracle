@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Any, Optional
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")

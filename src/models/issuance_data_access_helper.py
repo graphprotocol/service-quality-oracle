@@ -174,7 +174,7 @@ def _setup_user_credentials_in_memory(creds_data: dict) -> None:
             token_uri="https://oauth2.googleapis.com/token",
         )
         # Set credentials globally for GCP libraries
-        google.auth._default._CREDENTIALS = credentials
+        google.auth._default._CREDENTIALS = credentials  # type: ignore[attr-defined]
         logger.info("Successfully loaded user account credentials from environment variable")
     finally:
         # Clear sensitive data from local scope
@@ -191,7 +191,7 @@ def _setup_service_account_credentials_in_memory(creds_data: dict) -> None:
         # Create credentials object directly from dict
         credentials = service_account.Credentials.from_service_account_info(creds_data)
         # Set credentials globally for GCP libraries
-        google.auth._default._CREDENTIALS = credentials
+        google.auth._default._CREDENTIALS = credentials  # type: ignore[attr-defined]
         logger.info("Successfully loaded service account credentials from environment variable")
     except Exception as e:
         logger.error(f"Failed to create service account credentials: {e}")
