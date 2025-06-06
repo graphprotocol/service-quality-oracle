@@ -74,7 +74,7 @@ def update_healthcheck(message=None):
 def run_oracle(force_date=None):
     """
     Function to run the Service Quality Oracle
-    
+
     Args:
         force_date: If provided, override the date for this run
     """
@@ -92,6 +92,7 @@ def run_oracle(force_date=None):
 
         # Run the oracle
         import src.models.issuance_eligibility_oracle_core as oracle
+
         oracle.main()
 
         # Record successful run and overwrite the last run date
@@ -108,12 +109,12 @@ def run_oracle(force_date=None):
         if slack_notifier:
             slack_notifier.send_success_notification(
                 message=f"Run completed successfully for {today}. Duration: {duration_in_seconds:.2f}s",
-                title="Scheduled Run Success"
+                title="Scheduled Run Success",
             )
 
         # Return True to indicate success
         return True
-    
+
     # If there is an error when trying to run the oracle, log the error and raise an exception
     except Exception as e:
         error_message = f"Run failed due to: {str(e)}"
@@ -121,16 +122,16 @@ def run_oracle(force_date=None):
 
         # Update healthcheck file to indicate failure
         update_healthcheck(f"ERROR: {error_message}")
-        
+
         # Send failure notification to slack
         if slack_notifier:
             duration = (datetime.now() - start_time).total_seconds()
             slack_notifier.send_failure_notification(
                 error_message=str(e),
                 stage="Scheduled Run" if force_date is None else f"Missed Run ({force_date})",
-                execution_time=duration
+                execution_time=duration,
             )
-        
+
         # Raise an exception to indicate failure
         raise
 
@@ -147,14 +148,19 @@ def check_missed_runs():
         # We missed at least one day
         missed_days = (today - last_run).days - 1
         logger.warning(f"Detected {missed_days} missed runs. Last run was on {last_run}.")
-        
+
         # Send notification about missed runs
         if slack_notifier:
-            slack_notifier.send_info_notification(
-                message=f"Detected {missed_days} missed oracle runs. Last successful run was on {last_run}. Attempting to execute missed run for yesterday.",
-                title="Missed Runs Detected"
+            message = (
+                f"Detected {missed_days} missed oracle runs. "
+                f"Last successful run was on {last_run}. "
+                "Attempting to execute missed run for yesterday."
             )
-        
+            slack_notifier.send_info_notification(
+                message=message,
+                title="Missed Runs Detected",
+            )
+
         # Run for the missed day (just run for yesterday, not all missed days)
         yesterday = today - timedelta(days=1)
         logger.info(f"Executing missed run for {yesterday}")
@@ -174,6 +180,7 @@ def initialize():
     try:
         # Early validation of required environment variables
         from src.utils.config_loader import validate_all_required_env_vars
+
         logger.info("Validating required environment variables...")
         validate_all_required_env_vars()
 
@@ -182,20 +189,25 @@ def initialize():
 
         # Load and validate configuration
         config = load_config()
-        
+
         # Initialize Slack notifications
         slack_notifier = create_slack_notifier(config.get("slack_webhook_url"))
         if slack_notifier:
             logger.info("Slack notifications enabled for scheduler")
 
             # Send startup notification
+            startup_message = (
+                f"Service Quality Oracle scheduler started successfully.\n"
+                f"**Scheduled time:** {config['scheduled_run_time']} UTC\n"
+                f"**Environment:** {os.environ.get('ENVIRONMENT', 'unknown')}"
+            )
             slack_notifier.send_info_notification(
-                message=f"Service Quality Oracle scheduler started successfully.\n**Scheduled time:** {config['scheduled_run_time']} UTC\n**Environment:** {os.environ.get('ENVIRONMENT', 'unknown')}",
-                title="Scheduler Started"
+                message=startup_message,
+                title="Scheduler Started",
             )
         else:
             logger.info("Slack notifications disabled for scheduler")
-        
+
         # Set timezone for consistent scheduling
         timezone = pytz.timezone("UTC")
         logger.info(f"Using timezone: {timezone}")
@@ -219,15 +231,13 @@ def initialize():
         return config
     except Exception as e:
         logger.error(f"Failed to initialize scheduler: {e}", exc_info=True)
-        
+
         # Try to send failure notification even if initialization failed
         if slack_notifier:
             slack_notifier.send_failure_notification(
-                error_message=str(e),
-                stage="Scheduler Initialization",
-                execution_time=0
+                error_message=str(e), stage="Scheduler Initialization", execution_time=0
             )
-        
+
         sys.exit(1)
 
 
@@ -252,8 +262,7 @@ if __name__ == "__main__":
 
         if slack_notifier:
             slack_notifier.send_info_notification(
-                message="Scheduler stopped by user interrupt",
-                title="Scheduler Stopped"
+                message="Scheduler stopped by user interrupt", title="Scheduler Stopped"
             )
 
     except Exception as e:
@@ -262,10 +271,8 @@ if __name__ == "__main__":
         # Send failure notification to slack
         if slack_notifier:
             slack_notifier.send_failure_notification(
-                error_message=str(e),
-                stage="Scheduler Runtime",
-                execution_time=0
+                error_message=str(e), stage="Scheduler Runtime", execution_time=0
             )
-        
+
         # Exit the scheduler
         sys.exit(1)

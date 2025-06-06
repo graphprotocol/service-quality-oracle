@@ -42,7 +42,7 @@ def main():
     """
     start_time = time.time()
     slack_notifier = None
-    
+
     try:
         # Load configuration to get Slack webhook and other settings
         config = load_config()
@@ -51,11 +51,11 @@ def main():
             logger.info("Slack notifications enabled")
         else:
             logger.info("Slack notifications disabled (no webhook URL configured)")
-   
+
     except Exception as e:
         logger.error(f"Failed to load configuration: {str(e)}")
         sys.exit(1)
-    
+
     try:
         # Attempt to load google bigquery data access credentials
         try:
@@ -65,7 +65,7 @@ def main():
         # If credentials could not be loaded, set them up in memory via helper function using environment variables
         except Exception:
             _setup_google_credentials_in_memory_from_env_var()
-        
+
         try:
             # Fetch + save indexer eligibility data and return eligible list as 'eligible_indexers' array
             eligible_indexers = (
@@ -76,73 +76,64 @@ def main():
                     max_age_before_deletion=config.get("MAX_AGE_BEFORE_DELETION"),
                 )
             )
-            
+
             logger.info(f"Found {len(eligible_indexers)} eligible indexers.")
-            
+
             # Send eligible indexers to the blockchain contract
             try:
                 batch_allow_indexers_issuance_eligibility_smart_contract(
-                    eligible_indexers, 
-                    replace=True, 
-                    batch_size=config.get("BATCH_SIZE"), 
-                    data_bytes=b""
+                    eligible_indexers, replace=True, batch_size=config.get("BATCH_SIZE"), data_bytes=b""
                 )
-                
+
                 # Calculate execution time and send success notification
                 execution_time = time.time() - start_time
                 logger.info(f"Oracle run completed successfully in {execution_time:.2f} seconds")
-                
+
                 if slack_notifier:
                     # TODO: For success notification, we need to get total processed count
                     # This would ideally come from the data processing functions
                     total_processed = len(eligible_indexers)  # Simplified for now
-                    
+
                     slack_notifier.send_success_notification(
                         eligible_indexers=eligible_indexers,
                         total_processed=total_processed,
-                        execution_time=execution_time
+                        execution_time=execution_time,
                     )
-                
+
             except Exception as e:
                 execution_time = time.time() - start_time
                 error_msg = f"Failed to allow indexers to claim issuance because: {str(e)}"
                 logger.error(error_msg)
-                
+
                 if slack_notifier:
                     slack_notifier.send_failure_notification(
-                        error_message=str(e),
-                        stage="Blockchain Submission",
-                        execution_time=execution_time
+                        error_message=str(e), stage="Blockchain Submission", execution_time=execution_time
                     )
-                
+
                 sys.exit(1)
-                
+
         except Exception as e:
             execution_time = time.time() - start_time
             error_msg = f"Failed to process indexer issuance eligibility data because: {str(e)}"
             logger.error(error_msg)
-            
+
             if slack_notifier:
                 slack_notifier.send_failure_notification(
-                    error_message=str(e),
-                    stage="Data Processing",
-                    execution_time=execution_time
+                    error_message=str(e), stage="Data Processing", execution_time=execution_time
                 )
-            
+
             sys.exit(1)
-            
+
     except Exception as e:
         execution_time = time.time() - start_time
         error_msg = f"Oracle initialization or authentication failed: {str(e)}"
         logger.error(error_msg)
-        
+
         if slack_notifier:
             slack_notifier.send_failure_notification(
-                error_message=str(e),
-                stage="Initialization",
-                execution_time=execution_time
+                error_message=str(e), stage="Initialization", execution_time=execution_time
             )
-        
+
         sys.exit(1)
 
 

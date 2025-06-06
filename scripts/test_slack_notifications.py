@@ -7,7 +7,6 @@ This script tests the Slack notification functionality without running the full 
 import logging
 import os
 import sys
-import time
 from typing import Optional
 
 # Add project root to path
@@ -22,14 +21,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("slack-notifier-test")
 
-from src.utils.config_loader import load_config
 from src.utils.slack_notifier import SlackNotifier, create_slack_notifier
 
 
 def load_slack_configuration() -> Optional[str]:
     """
     Load Slack webhook URL from configuration.
-    
+
     Returns:
         Slack webhook URL if found, None otherwise
     """
@@ -43,20 +41,20 @@ def load_slack_configuration() -> Optional[str]:
 def create_and_validate_slack_notifier(webhook_url: str) -> Optional[SlackNotifier]:
     """
     Create and validate Slack notifier instance.
-    
+
     Args:
         webhook_url: The Slack webhook URL
-        
+
     Returns:
         SlackNotifier instance if successful, None otherwise
     """
     # Create notifier instance using factory function
     notifier = create_slack_notifier(webhook_url)
-    
+
     if not notifier:
         logger.error("Failed to create Slack notifier instance")
         return None
-        
+
     logger.info("Slack notifier created successfully")
     return notifier
 
@@ -64,21 +62,18 @@ def create_and_validate_slack_notifier(webhook_url: str) -> Optional[SlackNotifi
 def test_info_notification(notifier: SlackNotifier) -> bool:
     """
     Test sending an informational notification to Slack.
-    
+
     Args:
         notifier: Configured SlackNotifier instance
-        
+
     Returns:
         True if test passes, False otherwise
     """
     # Send test info notification with sample message
     logger.info("Testing info notification...")
-    
-    success = notifier.send_info_notification(
-        message="Test send info notification",
-        title="Test Notification"
-    )
-    
+
+    success = notifier.send_info_notification(message="Test send info notification", title="Test Notification")
+
     if success:
         logger.info("Info notification TEST PASSED")
         return True
@@ -90,28 +85,26 @@ def test_info_notification(notifier: SlackNotifier) -> bool:
 def test_success_notification(notifier: SlackNotifier) -> bool:
     """
     Test sending a success notification to Slack.
-    
+
     Args:
         notifier: Configured SlackNotifier instance
-        
+
     Returns:
         True if test passes, False otherwise
     """
     # Send test success notification with sample indexer data
     logger.info("Testing success notification...")
-    
+
     test_indexers = [
         "0x1234567890abcdef1234567890abcdef12345678",
         "0xabcdef1234567890abcdef1234567890abcdef12",
-        "0x9876543210fedcba9876543210fedcba98765432"
+        "0x9876543210fedcba9876543210fedcba98765432",
     ]
-    
+
     success = notifier.send_success_notification(
-        eligible_indexers=test_indexers,
-        total_processed=len(test_indexers),
-        execution_time=1.0
+        eligible_indexers=test_indexers, total_processed=len(test_indexers), execution_time=1.0
     )
-    
+
     if success:
         logger.info("Success notification TEST PASSED")
         return True
@@ -123,22 +116,22 @@ def test_success_notification(notifier: SlackNotifier) -> bool:
 def test_failure_notification(notifier: SlackNotifier) -> bool:
     """
     Test sending a failure notification to Slack.
-    
+
     Args:
         notifier: Configured SlackNotifier instance
-        
+
     Returns:
         True if test passes, False otherwise
     """
     # Send test failure notification with sample error
     logger.info("Testing failure notification...")
-    
+
     success = notifier.send_failure_notification(
         error_message="Test error message to verify failure notifications work correctly.",
         stage="Test Stage",
-        execution_time=1
+        execution_time=1,
     )
-    
+
     if success:
         logger.info("Failure notification TEST PASSED")
         return True
@@ -155,7 +148,7 @@ def execute_all_slack_tests() -> bool:
         - Info notification
         - Success notification
         - Failure notification
-    
+
     Returns:
         True if all tests pass, False otherwise
     """
@@ -164,28 +157,28 @@ def execute_all_slack_tests() -> bool:
     if not webhook_url:
         logger.error("Failed to load webhook_url")
         return False
-    
+
     # Create and validate Slack notifier instance
     notifier = create_and_validate_slack_notifier(webhook_url)
     if not notifier:
         logger.error("Failed to create Slack notifier instance")
         return False
-    
+
     # Execute info notification test
     if not test_info_notification(notifier):
         logger.error("Failed to send info notification")
         return False
-    
+
     # Execute success notification test
     if not test_success_notification(notifier):
         logger.error("Failed to send success notification")
         return False
-    
+
     # Execute failure notification test
     if not test_failure_notification(notifier):
         logger.error("Failed to send failure notification")
         return False
-    
+
     # All tests completed successfully
     logger.info("All Slack notification tests passed!")
     return True
@@ -213,11 +206,11 @@ def main():
     """
     # Display test header information
     logger.info("Service Quality Oracle - Slack Notification Test")
-    
+
     # Check environment variable configuration
     if not check_environment_variable_configuration():
         sys.exit(1)
-    
+
     # Execute all tests and handle results
     if execute_all_slack_tests():
         logger.info("All tests completed successfully!")
@@ -231,4 +224,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()
