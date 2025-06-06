@@ -1,0 +1,60 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # =============================================================================
+  # PR VALIDATION
+  # =============================================================================
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate PR requirements
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          if [[ ${#PR_TITLE} -lt 1 ]]; then
+            echo "PR title cannot be empty"
+            exit 1
+          fi
+          
+          PR_BODY="${{ github.event.pull_request.body }}"
+          if [[ ${#PR_BODY} -lt 1 ]]; then
+            echo "PR description cannot be empty"
+            exit 1
+          fi
+
+      - name: Analyze file changes
+        run: |
+          git diff --name-only origin/main...HEAD > changed_files.txt
+          
+          if grep -q "\.github/workflows/" changed_files.txt; then
+            echo "GitHub workflow files modified"
+          fi
+
+          if grep -q "Dockerfile\|docker-compose" changed_files.txt; then
+            echo "Docker configuration modified"
+          fi
+          
+          if grep -q "requirements.txt\|pyproject.toml" changed_files.txt; then
+            echo "Dependencies modified"
+          fi
+
+      - name: Check for merge conflicts
+        run: |
+          git config user.name "CI Bot"
+          git config user.email "ci@example.com"
+          
+          if ! git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main | grep -q "^<<<<<<< "; then
+            echo "No merge conflicts detected"
+          else
+            echo "Merge conflicts detected - resolve before merging"
+            exit 1
+          fi 

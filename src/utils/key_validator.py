@@ -14,12 +14,14 @@ logger = logging.getLogger(__name__)
 
 class KeyValidationError(Exception):
     """Raised when key validation fails."""
+
     pass
 
 
 @dataclass
 class KeyValidationResult:
     """Result of private key validation."""
+
     is_valid: bool
     formatted_key: Optional[str]
     error_message: Optional[str]

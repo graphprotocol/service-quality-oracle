@@ -1,0 +1,88 @@
+name: Security Scanning
+
+on:
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main ]
+
+jobs:
+  # =============================================================================
+  # DEPENDENCY SCAN
+  # =============================================================================
+  dependency-scan:
+    name: Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Scan dependencies
+        run: |
+          pip install safety
+          safety check --file requirements.txt || echo "Vulnerabilities found - review required"
+
+  # =============================================================================
+  # CODE SECURITY SCAN
+  # =============================================================================
+  code-security:
+    name: Code Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Run security analysis
+        run: |
+          pip install bandit
+          bandit -r src/ || echo "Security issues found - review required"
+
+  # =============================================================================
+  # SECRETS SCAN
+  # =============================================================================
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --only-verified
+
+  # =============================================================================
+  # DOCKER SECURITY
+  # =============================================================================
+  docker-security:
+    name: Docker Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and scan image
+        run: docker build -t service-quality-oracle:security-scan .
+
+      - name: Run vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'service-quality-oracle:security-scan'
+          format: 'table' 

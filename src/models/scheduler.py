@@ -20,7 +20,6 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger("oracle-scheduler")
-
 # Path to store last run info
 LAST_RUN_FILE = "/app/data/last_run.txt"
 HEALTHCHECK_FILE = "/app/healthcheck"
@@ -44,7 +43,6 @@ def save_last_run_date(run_date):
         os.makedirs(os.path.dirname(LAST_RUN_FILE), exist_ok=True)
         with open(LAST_RUN_FILE, "w") as f:
             f.write(run_date.strftime("%Y-%m-%d"))
-
     except Exception as e:
         logger.error(f"Error saving last run date: {e}")
 
@@ -72,39 +70,30 @@ def update_healthcheck(message=None):
 def run_oracle(force_date=None):
     """
     Function to run the Service Quality Oracle
-
     Args:
         force_date: If provided, override the date for this run
     """
     today = force_date or datetime.now().date()
     start_time = datetime.now()
     logger.info(f"Starting Service Quality Oracle run at {start_time} for date {today}")
-
     # Ensure we have valid google credentials before proceeding
     _setup_google_credentials_in_memory_from_env_var()
-
     try:
         # Load latest configuration using config loader
         load_config()
-
         # Run the oracle
         import src.models.issuance_eligibility_oracle_core as oracle
 
         oracle.main()
-
         # Record successful run and overwrite the last run date
         save_last_run_date(today)
-
         end_time = datetime.now()
         duration_in_seconds = (end_time - start_time).total_seconds()
         success_message = f"Run completed successfully for {today}. Duration: {duration_in_seconds:.2f}s"
         logger.info(f"Service Quality Oracle {success_message}")
-
         # Touch healthcheck file to indicate successful runs
         update_healthcheck(success_message)
-
         return True
-
     except Exception as e:
         error_message = f"Run failed due to: {str(e)}"
         logger.error(error_message, exc_info=True)
@@ -117,16 +106,13 @@ def check_missed_runs():
     """Check if we missed any runs and execute them if needed"""
     today = datetime.now().date()
     last_run = get_last_run_date()
-
     if last_run is None:
         logger.info("No record of previous runs. Will run at next scheduled time.")
         return False
-
     if last_run < today - timedelta(days=1):
         # We missed at least one day
         missed_days = (today - last_run).days - 1
         logger.warning(f"Detected {missed_days} missed runs. Last run was on {last_run}.")
-
         # Run for the missed day (just run for yesterday, not all missed days)
         yesterday = today - timedelta(days=1)
         logger.info(f"Executing missed run for {yesterday}")
@@ -136,39 +122,31 @@ def check_missed_runs():
         except Exception as e:
             logger.error(f"Failed to execute missed run for {yesterday}: {e}")
             return False
-
     return False
 
 
 def initialize():
     """Initialize the scheduler and validate configuration"""
     logger.info("Initializing scheduler...")
-
     try:
         # Early validation of required environment variables
         from src.utils.config_loader import validate_all_required_env_vars
 
         logger.info("Validating required environment variables...")
         validate_all_required_env_vars()
-
         # Validate credentials early to fail fast if there are issues
         _setup_google_credentials_in_memory_from_env_var()
-
         # Load and validate configuration
         config = load_config()
-
         # Set timezone for consistent scheduling
         timezone = pytz.timezone("UTC")
         logger.info(f"Using timezone: {timezone}")
-
         # Schedule the job
         run_time = config["scheduled_run_time"]
         logger.info(f"Scheduling daily run at {run_time} UTC")
         schedule.every().day.at(run_time).do(run_oracle)
-
         # Create initial healthcheck file
         update_healthcheck("Scheduler initialized")
-
         # Run on startup if requested
         if os.environ.get("RUN_ON_STARTUP", "false").lower() == "true":
             logger.info("RUN_ON_STARTUP=true, executing oracle immediately")
@@ -180,9 +158,7 @@ def initialize():
                 logger.info("Executed missed run successfully")
             else:
                 logger.info("No missed runs to execute")
-
         return config
-
     except Exception as e:
         logger.error(f"Failed to initialize scheduler: {e}", exc_info=True)
         sys.exit(1)
@@ -192,22 +168,17 @@ if __name__ == "__main__":
     # Initialize the scheduler
     config = initialize()
     logger.info("Scheduler started and waiting for scheduled runs")
-
     # Main loop
     try:
         while True:
             schedule.run_pending()
-
             # Update healthcheck file periodically (every 30 seconds)
             if datetime.now().second % 30 == 0:
                 update_healthcheck("Scheduler heartbeat")
-
             # Sleep
             time.sleep(15)
-
     except KeyboardInterrupt:
         logger.info("Scheduler stopped by user")
-
     except Exception as e:
         logger.error(f"Scheduler crashed: {e}", exc_info=True)
         sys.exit(1)

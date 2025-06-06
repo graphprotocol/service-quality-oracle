@@ -10,7 +10,9 @@ data/
 postgres_data/
 logs/
 subgraph/
-contracts/
+
+# Ignore real contract files but allow placeholders
+contracts/contract.abi.json
 
 # Ignore Ruff
 .ruff_cache/

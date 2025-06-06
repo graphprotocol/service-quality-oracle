@@ -28,6 +28,12 @@ The application follows this data flow:
 
 2. **Blockchain Publication**: The eligible indexers list from step 1 is directly posted on-chain to a smart contract. Batching of transactions is performed if necessary.
 
+## CI/CD Pipeline
+
+Automated quality checks and security scanning via GitHub Actions. Run `./scripts/ruff_check_format_assets.sh` locally before pushing.
+
+For details: [.github/README.md](./.github/README.md)
+
 ## Getting Started
 
 ### Quick Start with Docker
@@ -55,6 +61,32 @@ The application follows this data flow:
    docker-compose ps
    ```
 
+### Development Workflow
+
+For contributors working on the codebase:
+
+**Before pushing:**
+   ```bash
+   # Setup venv
+   python3 -m venv venv
+   source venv/bin/activate
+
+   # Install requirements
+   pip install -r requirements.txt
+
+   # Use the custom ruff script for linting (includes SQL formatting and aggressive linting)
+   ./scripts/ruff_check_format_assets.sh
+   ```
+
+**Optional checks:**
+```bash
+mypy src/ --ignore-missing-imports
+bandit -r src/
+```
+
+> **Note:** The CI/CD pipeline uses the custom `ruff_check_format_assets.sh` script which includes SQL whitespace fixes and more aggressive formatting than standard ruff. 
+> 
+> Always run this script locally before pushing to avoid CI failures.
 
 ## License
 
@@ -63,29 +95,23 @@ The application follows this data flow:
 
 ## TODO List (only outstanding TODOs)
 
-### Environment variables
-- [ ] Load and securely manage secrets
-
-### Smart Contract Integration
-- [ ] Further verification steps to confirm successful on-chain updates
-
-### Testing & Quality Assurance
-- [ ] Create unit tests for all components
+### 1. Monitoring features
 - [ ] Slack monitoring integration
   - [ ] Add notification logic for failed runs so we are aware in a slack channel
   - [ ] Initially we can notify for successful runs too
-- [ ] Create integration tests for the entire pipeline
-- [ ] Implement mocking for blockchain interactions in test environment
-- [ ] CI/CD pipeline?
-- [ ] Perform security review of code and dependencies
-- [ ] Ensure unused files, functions & dependencies are removed from codebase
 
-### Documentation
-
-- [ ] Documentation of all major components
-- [ ] Document operational procedures
-
-### Production Readiness
+### 2. Production Readiness
 - [ ] Check error recovery mechanisms to see if they could be improved (RPC failover, retry logic)
 - [ ] Verify health check endpoints or processes (Docker healthcheck)
 
+### 3. Testing
+- [ ] Create unit tests for all components
+- [ ] Create integration tests for the entire pipeline
+- [ ] Security review of code and dependencies
+
+### 4. Documentation
+- [ ] Documentation of all major components
+- [ ] Document operational procedures
+
+## 5. Last check
+- [ ] Ensure unused files, functions & dependencies are removed from codebase
