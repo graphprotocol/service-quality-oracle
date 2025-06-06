@@ -8,26 +8,24 @@ if [ ! -f "requirements.txt" ]; then
     exit 1
 fi
 
-# Fix SQL whitespace issues before running ruff (Linux/macOS compatible)
-echo "Fixing SQL whitespace issues in BigQuery provider..."
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    find src/models -name "*.py" -type f -exec sed -i '' -E 's/([A-Z]+) +$/\1/g' {} \;
-    find src/models -name "*.py" -type f -exec sed -i '' -E '/^[[:space:]]*$/d' {} \;
-else
-    # Linux (CI environment)
-    find src/models -name "*.py" -type f -exec sed -i -E 's/([A-Z]+) +$/\1/g' {} \;
-    find src/models -name "*.py" -type f -exec sed -i -E '/^[[:space:]]*$/d' {} \;
-fi
-echo "SQL whitespace issues fixed!"
-
-# Run ruff check with auto-fix, including unsafe fixes for typing annotations
+# Run ruff check with auto-fix first (including unsafe fixes for typing annotations)
 echo "Running ruff check with auto-fix..."
 ruff check src tests scripts --fix --unsafe-fixes --show-fixes
 
-# Run ruff format with more aggressive formatting
+# Run ruff format
 echo "Running ruff format..."
 ruff format src tests scripts
+
+# Fix SQL-specific whitespace issues after ruff (only trailing whitespace, avoid blank line removal)
+echo "Fixing SQL trailing whitespace issues in BigQuery provider..."
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS - Only fix trailing whitespace after SQL keywords
+    find src/models -name "*.py" -type f -exec sed -i '' -E 's/([A-Z]+) +$/\1/g' {} \;
+else
+    # Linux (CI environment) - Only fix trailing whitespace after SQL keywords
+    find src/models -name "*.py" -type f -exec sed -i -E 's/([A-Z]+) +$/\1/g' {} \;
+fi
+echo "SQL whitespace issues fixed!"
 
 # Show remaining issues (mainly line length issues that need manual intervention)
 echo -e "\n\nRemaining issues that need manual attention:"
