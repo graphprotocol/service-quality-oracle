@@ -106,7 +106,7 @@ class SubgraphProvider:
             Query result as dictionary
         """
         headers = {"Content-Type": "application/json"}
-        data = {"query": query}
+        data: dict[str, Any] = {"query": query}
         if variables:
             data["variables"] = variables
         try:

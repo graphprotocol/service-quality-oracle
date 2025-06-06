@@ -9,6 +9,7 @@ import os
 import shutil
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -45,7 +46,7 @@ def _validate_required_fields(data: dict, required_fields: list[str], context: s
         raise ValueError(f"{context}: missing {missing_fields}")
 
 
-def _load_config_and_return_validated() -> dict[str, str | int | list]:
+def _load_config_and_return_validated() -> dict[str, Any]:
     """
     Load all necessary configurations using config loader, validate, and return them.
     # TODO: check config file return dict format correct (also in other functions throughout the codebase)
@@ -342,7 +343,7 @@ def _get_working_web3_connection(
             if w3.is_connected():
                 logger.info(f"Successfully connected to {provider_type} RPC provider")
                 # Create contract instance and return web3 instance, contract instance, and provider URL
-                contract = w3.eth.contract(address=contract_address, abi=contract_abi)
+                contract = w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=contract_abi)
                 return w3, contract, rpc_url
             else:
                 logger.warning(f"Could not connect to {provider_type} RPC provider: {rpc_url}")
@@ -480,12 +481,12 @@ def _build_transaction_params(
     if replace:
         tx_params["maxFeePerGas"] = base_fee * 4 + max_priority_fee * 2
         tx_params["maxPriorityFeePerGas"] = max_priority_fee * 2
-        logger.info(f"High gas for replacement: {tx_params['maxFeePerGas']/1e9:.2f} gwei")
+        logger.info(f"High gas for replacement: {int(tx_params['maxFeePerGas'])/1e9:.2f} gwei")
     # If we are not replacing a pending transaction, use a lower gas price
     else:
         tx_params["maxFeePerGas"] = base_fee * 2 + max_priority_fee
         tx_params["maxPriorityFeePerGas"] = max_priority_fee
-        logger.info(f"Standard gas: {tx_params['maxFeePerGas']/1e9:.2f} gwei")
+        logger.info(f"Standard gas: {int(tx_params['maxFeePerGas'])/1e9:.2f} gwei")
     logger.info(f"Transaction parameters: nonce={nonce}, gas={gas_limit}, chain_id={chain_id}")
     return tx_params
 
@@ -808,7 +809,7 @@ def batch_allow_indexers_issuance_eligibility_smart_contract(
     try:
         tx_links = []
         # Validate and format private key
-        private_key = validate_and_format_private_key(config["private_key"])
+        private_key = validate_and_format_private_key(str(config["private_key"]))
         # Process each batch
         for i in range(num_batches):
             start_idx = i * batch_size
@@ -819,10 +820,10 @@ def batch_allow_indexers_issuance_eligibility_smart_contract(
                 tx_hash = _send_transaction_to_allow_indexers_in_list_to_claim_issuance(
                     batch_indexers,
                     private_key,
-                    config["chain_id"],
-                    config["rpc_providers"],
-                    config["contract_address"],
-                    config["contract_function"],
+                    int(config["chain_id"]),
+                    list(config["rpc_providers"]),
+                    str(config["contract_address"]),
+                    str(config["contract_function"]),
                     replace,
                     data_bytes,
                 )
@@ -857,7 +858,7 @@ def bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eli
     # Load config using secure configuration loader
     config = _load_config_and_return_validated()
     # Initialize the BigQuery provider class so we can use its methods to fetch data from BigQuery
-    bq_provider = BigQueryProvider(project=config["bigquery_project_id"], location=config["bigquery_location"])
+    bq_provider = BigQueryProvider(project=str(config["bigquery_project_id"]), location=str(config["bigquery_location"]))
     try:
         # Fetch eligibility dataframe
         logger.info(f"Fetching eligibility data between {start_date} and {end_date}")
@@ -914,7 +915,7 @@ def _fetch_issuance_enabled_indexers_from_subgraph() -> list[str]:
     logger.info("Configuration for subgraph query loaded successfully.")
     try:
         # Initialize the subgraph provider class so we can use its methods to fetch data from our subgraph
-        subgraph_provider = SubgraphProvider(subgraph_url, api_key=studio_api_key)
+        subgraph_provider = SubgraphProvider()
         # Fetch all indexers from the subgraph
         indexers_data = subgraph_provider.fetch_all_indexers()
         logger.info(f"Retrieved data for {len(indexers_data)} indexers from subgraph")

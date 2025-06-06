@@ -22,12 +22,7 @@ from typing import Any, Optional
 try:
     import tomllib  # Python 3.11+
 except ImportError:
-    try:
-        import tomli as tomllib  # Python < 3.11
-    except ImportError:
-        raise ImportError(
-            "TOML support requires 'tomli' package for Python < 3.11. " "Install with: pip install tomli"
-        ) from None
+    import tomli as tomllib  # Python < 3.11
 
 logger = logging.getLogger(__name__)
 
