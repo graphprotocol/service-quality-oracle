@@ -862,7 +862,9 @@ def bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eli
     # Load config using secure configuration loader
     config = _load_config_and_return_validated()
     # Initialize the BigQuery provider class so we can use its methods to fetch data from BigQuery
-    bq_provider = BigQueryProvider(project=str(config["bigquery_project_id"]), location=str(config["bigquery_location"]))
+    bq_provider = BigQueryProvider(
+        project=str(config["bigquery_project_id"]), location=str(config["bigquery_location"])
+    )
     try:
         # Fetch eligibility dataframe
         logger.info(f"Fetching eligibility data between {start_date} and {end_date}")
