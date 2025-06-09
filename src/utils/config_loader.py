@@ -41,6 +41,7 @@ class ConfigLoader:
         self.config_path = config_path or self._get_default_config_path()
         self._env_var_pattern = re.compile(r"\$([A-Z_][A-Z0-9_]*)")
 
+
     def _get_default_config_path(self) -> str:
         """Get the default configuration template path."""
         # Check if we're in a Docker container
@@ -57,6 +58,7 @@ class ConfigLoader:
             current_path = current_path.parent
 
         raise ConfigurationError("Could not find config.toml in project root or Docker container")
+
 
     # TODO: check this...
     def _substitute_env_vars(self, config_toml: Any) -> Any:
@@ -97,6 +99,7 @@ class ConfigLoader:
         else:
             return config_toml
 
+
     def load_config(self) -> dict[str, Any]:
         """
         Load configuration from config.toml and substitute environment variables.
@@ -132,6 +135,7 @@ class ConfigLoader:
         except Exception as e:
             raise ConfigurationError(f"Failed to substitute environment variables: {e}") from e
 
+
     def validate_required_env_vars(self) -> None:
         """
         Validate that all required environment variables are set without loading full config.
@@ -159,6 +163,7 @@ class ConfigLoader:
                 f"Missing required environment variables: {', '.join(sorted(set(missing_vars)))}"
             )
 
+
     def _collect_missing_env_vars(self, obj: Any) -> list[str]:
         """
         Collect all missing environment variables from config object.
@@ -185,6 +190,7 @@ class ConfigLoader:
 
         # After all the missing variables have been collected, return the list
         return missing_vars
+
 
     def get_flat_config(self) -> dict[str, Any]:
         """
@@ -221,6 +227,7 @@ class ConfigLoader:
         }
 
         return flat_config
+
 
     def _parse_rpc_urls(self, rpc_urls: list) -> list[str]:
         """Parse RPC URLs from list format."""
