@@ -1,6 +1,6 @@
 """
-Slack notification utility module
-Provides functionality to send notifications to Slack channels.
+Slack notification utility for Service Quality Oracle.
+Provides simple, reliable notifications to Slack channels.
 """
 
 import logging
@@ -8,21 +8,14 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import requests
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 # Module-level logger
 logger = logging.getLogger(__name__)
 
 
 class SlackNotifier:
-    """A utility class for sending notifications to Slack via webhooks."""
+    """Simple utility class for sending notifications to Slack via webhooks."""
 
-    # Initialize the Slack notifier
     def __init__(self, webhook_url: str) -> None:
         """
         Initialize the Slack notifier.
@@ -32,54 +25,11 @@ class SlackNotifier:
         """
         self.webhook_url = webhook_url
         self.timeout = 10  # seconds
-
-    @retry(
-        retry=retry_if_exception_type(
-            (
-                requests.exceptions.RequestException,
-                requests.exceptions.Timeout,
-                requests.exceptions.ConnectionError,
-            )
-        ),
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=10),
-        reraise=True,
-    )
-    def _send_message_with_retry(self, payload: Dict) -> requests.Response:
-        """
-        Send a message to Slack via webhook, with retry logic for network issues.
-
-        Args:
-            payload: The message payload to send
-
-        Returns:
-            requests.Response object
-
-        Raises:
-            requests.exceptions.RequestException: If all retries fail
-        """
-        # Log the attempt with payload summary
-        message_type = payload.get("text", "Unknown message type")
-        logger.info(f"Sending Slack notification: {message_type[:50]}...")
-
-        # Send the HTTP request to Slack webhook
-        response = requests.post(
-            self.webhook_url, json=payload, timeout=self.timeout, headers={"Content-Type": "application/json"}
-        )
-
-        # Log response details for debugging
-        logger.debug(f"Slack API response: Status {response.status_code}, Body: {response.text[:200]}")
-
-        # Raise exception for non-200 status codes to trigger retry
-        if response.status_code != 200:
-            logger.warning(f"Slack notification attempt failed with status {response.status_code}")
-            response.raise_for_status()
-
-        return response
+        self.max_attempts = 8
 
     def _send_message(self, payload: Dict) -> bool:
         """
-        Send a message to Slack via webhook with retry logic and detailed logging.
+        Send a message to Slack via webhook with exponential backoff retry.
 
         Args:
             payload: The message payload to send
@@ -87,48 +37,89 @@ class SlackNotifier:
         Returns:
             bool: True if message was sent successfully, False otherwise
         """
-        try:
-            # Attempt to send message with retry logic
-            response = self._send_message_with_retry(payload)
+        import time
 
-            # Verify successful delivery
-            if response.status_code == 200:
-                logger.info("Slack notification delivered successfully")
-                return True
+        # Get the message type from the payload
+        message_type = payload.get("text", "Unknown")
 
-            # If the message is not sent successfully, return False
-            else:
-                logger.error(f"Unexpected response after retry: {response.status_code}")
-                return False
+        # Log the message type
+        logger.info(f"Sending Slack notification: {message_type}")
 
-        # Handle all retry failures
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to send Slack notification after 3 attempts: {str(e)}")
-            return False
+        # Attempt to send the message 3 times with exponential backoff
+        for attempt in range(self.max_attempts):
+            try:
+                response = requests.post(
+                    self.webhook_url,
+                    json=payload,
+                    timeout=self.timeout,
+                    headers={"Content-Type": "application/json"}
+                )
+                
+                # If the message is sent successfully, return True
+                if response.status_code == 200:
+                    logger.info("Slack notification sent successfully")
+                    return True
+                
+                # log message failure
+                else:
+                    logger.warning(f"Slack notification failed: {response.status_code}")
 
-        # Handle any other unexpected errors
-        except Exception as e:
-            logger.error(f"Unexpected error sending Slack notification: {str(e)}")
-            return False
+            # If there is an error when trying to send the message, log the error
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Slack notification attempt {attempt + 1} failed: {str(e)}")
+
+                # If the last attempt fails, log an error
+                if attempt == self.max_attempts - 1:
+                    logger.error("All Slack notification attempts failed")
+
+                # If the attempt is not the last, wait for the exponential backoff and retry
+                else:
+                    # Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 64s, 128s
+                    wait_time = 2 ** attempt
+                    logger.info(f"Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+
+        # If the message is not sent successfully, return False
+        return False
+
+
+    def _create_payload(self, text: str, fields: List[Dict], color: str = "good") -> Dict:
+        """Create a Slack message payload."""
+        return {
+            "text": text,
+            "attachments": [
+                {
+                    "color": color,
+                    "fields": fields,
+                    "footer": "Service Quality Oracle",
+                    "ts": int(datetime.now().timestamp()),
+                }
+            ],
+        }
+
 
     def send_success_notification(
-        self, eligible_indexers: List[str], total_processed: int, execution_time: Optional[float] = None
+        self,
+        eligible_indexers: List[str],
+        total_processed: int,
+        execution_time: Optional[float] = None,
+        transaction_links: Optional[List[str]] = None,
+        batch_count: Optional[int] = None,
     ) -> bool:
         """
-        Send a notification to Slack when the oracle run is successful.
+        Send a success notification to Slack.
 
         Args:
             eligible_indexers: List of eligible indexer addresses
             total_processed: Total number of indexers processed
             execution_time: Execution time in seconds (optional)
+            transaction_links: List of blockchain transaction links (optional)
+            batch_count: Number of transaction batches sent (optional)
 
         Returns:
             bool: True if notification was sent successfully
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-
-        # Create success message text
-        text = "The Service Quality Oracle has successfully completed its run."
 
         # Create success message fields
         fields = [
@@ -138,31 +129,43 @@ class SlackNotifier:
             {"title": "Total Processed", "value": str(total_processed), "short": True},
         ]
 
-        # Add execution time to the message fields
+        # Add execution time if provided
         if execution_time:
             fields.append({"title": "Execution Time", "value": f"{execution_time:.2f} seconds", "short": True})
 
+        # Add batch information if provided
+        if batch_count:
+            fields.append({"title": "Transaction Batches", "value": str(batch_count), "short": True})
+
+        # Add transaction links if provided
+        if transaction_links:
+            tx_links = "\n".join([f"Batch {i+1}: {link}" for i, link in enumerate(transaction_links)])
+            fields.append({"title": "Transactions", "value": tx_links, "short": False})
+
         # Create message payload
-        payload = {
-            "text": text,
-            "attachments": [
-                {"fields": fields, "footer": "Service Quality Oracle", "ts": int(datetime.now().timestamp())}
-            ],
-        }
+        payload = self._create_payload("Service Quality Oracle - Success", fields, "good")
 
         # Send message payload to Slack
         return self._send_message(payload)
 
+
     def send_failure_notification(
-        self, error_message: str, stage: str, execution_time: Optional[float] = None
+        self,
+        error_message: str,
+        stage: str,
+        execution_time: Optional[float] = None,
+        partial_transaction_links: Optional[List[str]] = None,
+        indexers_processed: Optional[int] = None,
     ) -> bool:
         """
-        Send a notification to Slack when the oracle run fails.
+        Send a failure notification to Slack.
 
         Args:
             error_message: The error message that occurred
             stage: The stage where the failure occurred
             execution_time: Execution time before failure in seconds (optional)
+            partial_transaction_links: Links to any transactions that succeeded before failure (optional)
+            indexers_processed: Number of indexers processed before failure (optional)
 
         Returns:
             bool: True if notification was sent successfully
@@ -170,34 +173,35 @@ class SlackNotifier:
         # Get the current timestamp
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-        # Create failure message
-        text = "The Service Quality Oracle has failed its run."
-
-        # Create failure message fields
         fields = [
             {"title": "Status", "value": "Failed", "short": True},
             {"title": "Timestamp", "value": timestamp, "short": True},
             {"title": "Failed Stage", "value": stage, "short": True},
         ]
 
-        # Add execution time to the message fields if one was provided
+        # Add execution time if provided
         if execution_time:
-            fields.append(
-                {"title": "Runtime Before Failure", "value": f"{execution_time:.2f} seconds", "short": True}
-            )
+            fields.append({"title": "Runtime", "value": f"{execution_time:.2f} seconds", "short": True})
 
-        # Add error details to the message fields so we can debug the issue
-        fields.append({"title": "Error Details", "value": f"```{error_message}```", "short": False})
+        # Add indexers processed if provided
+        if indexers_processed:
+            fields.append({"title": "Indexers Processed", "value": str(indexers_processed), "short": True})
+
+        # Add partial transaction links if any succeeded before failure
+        if partial_transaction_links:
+            tx_links = "\n".join([f"Batch {i+1}: {link}" for i, link in enumerate(partial_transaction_links)])
+            fields.append({"title": "Partial Transactions", "value": tx_links, "short": False})
+
+        # Truncate error message if too long
+        error_text = error_message[:1000] + "..." if len(error_message) > 1000 else error_message
+        fields.append({"title": "Error", "value": f"```{error_text}```", "short": False})
 
         # Create message payload
-        payload = {
-            "text": text,
-            "attachments": [
-                {"fields": fields, "footer": "Service Quality Oracle", "ts": int(datetime.now().timestamp())}
-            ],
-        }
+        payload = self._create_payload("Service Quality Oracle - FAILURE", fields, "danger")
 
+        # Send message payload to Slack
         return self._send_message(payload)
+
 
     def send_info_notification(self, message: str, title: str = "Info") -> bool:
         """
@@ -212,21 +216,16 @@ class SlackNotifier:
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-        # Create message payload
-        payload = {
-            "text": f"Service Quality Oracle - {title}",
-            "attachments": [
-                {
-                    "fields": [
-                        {"title": "Message", "value": message, "short": False},
-                        {"title": "Timestamp", "value": timestamp, "short": True},
-                    ],
-                    "footer": "Service Quality Oracle",
-                    "ts": int(datetime.now().timestamp()),
-                }
-            ],
-        }
+        # Create message fields
+        fields = [
+            {"title": "Message", "value": message, "short": False},
+            {"title": "Timestamp", "value": timestamp, "short": True},
+        ]
 
+        # Create message payload
+        payload = self._create_payload(f"Service Quality Oracle - {title}", fields)
+
+        # Send message payload to Slack
         return self._send_message(payload)
 
 
