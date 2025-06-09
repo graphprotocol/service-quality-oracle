@@ -45,7 +45,7 @@ class SlackNotifier:
         # Log the message type
         logger.info(f"Sending Slack notification: {message_type}")
 
-        # Attempt to send the message 3 times with exponential backoff
+        # Attempt to send the message self.max_attempts times with exponential backoff
         for attempt in range(self.max_attempts):
             try:
                 response = requests.post(
