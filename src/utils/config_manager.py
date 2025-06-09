@@ -40,3 +40,78 @@ class ConfigManager:
         # If any required fields are missing, raise an error
         if missing_fields:
             raise ValueError(f"{context}: missing {missing_fields}")
+
+
+    def load_and_validate_config(self) -> dict[str, Any]:
+        """
+        Load all necessary configurations using config loader, validate, and return them.
+        This function is called once at startup to load the configuration.
+
+        Returns:
+            Dict[str, Any]: Config dictionary with validated and converted values.
+                            {
+                                "bigquery_project_id": str,
+                                "bigquery_location": str,
+                                "rpc_providers": list[str],
+                                "contract_address": str,
+                                "contract_function": str,
+                                "chain_id": int,
+                                "scheduled_run_time": str,
+                                "batch_size": int,
+                                "max_age_before_deletion": int,
+                            }
+        Raises:
+            ConfigurationError: If configuration loading fails
+            ValueError: If configuration validation fails
+        """
+        # If the configuration has already been loaded, return it
+        if self._config is not None:
+            return self._config
+        
+        try:
+            # Load configuration using config loader
+            loader = ConfigLoader()
+            config = loader.get_flat_config()
+            logger.info("Successfully loaded configuration")
+            
+            # Validate and convert chain_id to integer
+            if config.get("chain_id"):
+                try:
+                    config["chain_id"] = int(config["chain_id"])
+                except ValueError as e:
+                    raise ValueError(f"Invalid BLOCKCHAIN_CHAIN_ID: {config['chain_id']} - must be an integer.") from e
+                    
+            # Validate scheduled run time format (HH:MM)
+            if config.get("scheduled_run_time"):
+                try:
+                    datetime.strptime(config["scheduled_run_time"], "%H:%M")
+                except ValueError as e:
+                    raise ValueError(
+                        f"Invalid SCHEDULED_RUN_TIME format: {config['scheduled_run_time']} - "
+                        "must be in HH:MM format"
+                    ) from e
+                    
+            # Validate blockchain configuration contains all required fields
+            required_fields = [
+                "private_key",
+                "contract_address",
+                "contract_function",
+                "chain_id",
+                "scheduled_run_time",
+            ]
+            self._validate_required_fields(config, required_fields, "Missing required blockchain configuration")
+            
+            # Validate RPC providers
+            if not config.get("rpc_providers") or not isinstance(config["rpc_providers"], list):
+                raise ValueError("BLOCKCHAIN_RPC_URLS must be a list of valid RPC URLs")
+            
+            # Set the configuration in the class & return it
+            self._config = config
+            return config
+
+        except ConfigurationError:
+            raise
+        except Exception as e:
+            raise ConfigurationError(f"Configuration validation failed: {e}") from e
+
+
