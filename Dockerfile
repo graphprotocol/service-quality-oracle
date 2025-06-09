@@ -16,52 +16,42 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     TZ=UTC
 
-# Install system dependencies
+# Install minimal system dependencies
 RUN apt-get update && apt-get install -y \
-    gcc \
     tini \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user to run the application
-RUN groupadd -g 1000 oracle && \
-    useradd -u 1000 -g oracle -s /bin/bash -m oracle
-
-# Create necessary directories for persistent data with proper permissions
-RUN mkdir -p /app/data/output /app/logs && \
-    chown -R oracle:oracle /app && \
-    chmod -R 750 /app
-
-# Copy requirements file separately to leverage Docker caching
+# Copy requirements file first to leverage Docker caching
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create necessary directories for persistent data
+RUN mkdir -p /app/data/output /app/logs
+
 # Copy the application code
-COPY --chown=oracle:oracle src/ ./src/
-COPY --chown=oracle:oracle scripts/ ./scripts/
-COPY --chown=oracle:oracle contracts/ ./contracts/
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+COPY contracts/ ./contracts/
 
 # Copy marker files for project root detection
-COPY --chown=oracle:oracle .gitignore ./
-COPY --chown=oracle:oracle pyproject.toml ./
+COPY .gitignore ./
+COPY pyproject.toml ./
 
 # Copy the scheduler to the root directory
-COPY --chown=oracle:oracle src/models/scheduler.py ./
+COPY src/models/scheduler.py ./
 
 # Create healthcheck file
-RUN touch /app/healthcheck && chown oracle:oracle /app/healthcheck
+RUN touch /app/healthcheck
 
-# Switch to non-root user
-USER oracle
-
-# Use Tini as entrypoint
+# Use Tini as entrypoint for proper signal handling
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Add healthcheck to verify the service is running
 HEALTHCHECK --interval=5m --timeout=30s --start-period=1m --retries=3 \
-  CMD python -c "import os, time; assert os.path.exists('/app/healthcheck') and time.time() - os.path.getmtime('/app/healthcheck') < 3600, 'Healthcheck failed: file missing or too old'" || exit 1
+  CMD python -c "import os, time; assert os.path.exists('/app/healthcheck') and time.time() - os.path.getmtime('/app/healthcheck') < 3600, 'Healthcheck failed'" || exit 1
 
 # Run the scheduler
 CMD ["python", "scheduler.py"]
