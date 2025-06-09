@@ -115,3 +115,25 @@ class ConfigManager:
             raise ConfigurationError(f"Configuration validation failed: {e}") from e
 
 
+    @staticmethod
+    def get_project_root() -> Path:
+        """
+        Get the path to the project root directory.
+        In Docker environments, use /app. Otherwise, find by marker files.
+        """
+        # Use the /app directory as the project root if it exists
+        docker_path = Path("/app")
+        if docker_path.exists():
+            return docker_path
+            
+        # If the /app directory doesn't exist fall back to marker files
+        current_path = Path(__file__).parent
+        while current_path != current_path.parent:
+            if (current_path / ".gitignore").exists() or (current_path / "pyproject.toml").exists():
+                logger.info(f"Found project root at: {current_path}")
+                return current_path
+            # Attempt to traverse upwards (will not work if the directory has no parent)
+            current_path = current_path.parent
+            
+        # If we got here, something is wrong
+        raise FileNotFoundError("Could not find project root directory. Investigate.")
