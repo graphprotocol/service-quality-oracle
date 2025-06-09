@@ -9,10 +9,8 @@ import schedule
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 import src.models.service_quality_oracle as oracle
-from src.models.issuance_data_access_helper import (
-    _setup_google_credentials_in_memory_from_env_var,
-)
 from src.utils.config_loader import load_config
+from src.utils.config_manager import credential_manager
 from src.utils.slack_notifier import create_slack_notifier
 
 # Configure logging
@@ -83,8 +81,9 @@ def run_oracle(force_date=None):
     today = force_date or datetime.now().date()
     start_time = datetime.now()
     logger.info(f"Starting Service Quality Oracle run at {start_time} for date {today}")
+    
     # Ensure we have valid google credentials before proceeding
-    _setup_google_credentials_in_memory_from_env_var()
+    credential_manager.setup_google_credentials()
 
     # Attempt to run the oracle
     try:
@@ -184,7 +183,7 @@ def initialize():
         validate_all_required_env_vars()
 
         # Validate credentials early to fail fast if there are issues
-        _setup_google_credentials_in_memory_from_env_var()
+        credential_manager.setup_google_credentials()
 
         # Load and validate configuration
         config = load_config()
