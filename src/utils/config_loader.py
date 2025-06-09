@@ -115,25 +115,22 @@ class ConfigLoader:
             # Load the TOML configuration
             with open(self.config_path, "rb") as f:
                 config = tomllib.load(f)
-
+            
             logger.info(f"Loaded configuration from: {self.config_path}")
-
-        except FileNotFoundError:
-            raise ConfigurationError(f"Configuration not found: {self.config_path}") from None
-        except Exception as e:
-            raise ConfigurationError(f"Failed to parse configuration: {e}") from e
-
-        try:
+            
             # Substitute environment variables throughout the configuration
             config = self._substitute_env_vars(config)
-
+            
             logger.info("Successfully loaded configuration with environment variables")
             return config
-
+            
+        except FileNotFoundError as e:
+            raise ConfigurationError(f"Configuration not found: {self.config_path}") from e
         except ConfigurationError:
             raise
         except Exception as e:
-            raise ConfigurationError(f"Failed to substitute environment variables: {e}") from e
+            error_context = "parse configuration" if "tomllib" in str(e) else "substitute environment variables"
+            raise ConfigurationError(f"Failed to {error_context}: {e}") from e
 
 
     def validate_required_env_vars(self) -> None:
