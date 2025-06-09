@@ -8,24 +8,23 @@ if [ ! -f "requirements.txt" ]; then
     exit 1
 fi
 
+# Check if pyproject.toml exists with ruff configuration
+if [ ! -f "pyproject.toml" ]; then
+    echo "Error: pyproject.toml not found. Make sure it exists with proper ruff configuration"
+    exit 1
+fi
+
 # Run ruff check with auto-fix first (including unsafe fixes for typing annotations)
 echo "Running ruff check with auto-fix..."
 ruff check src tests scripts --fix --unsafe-fixes --show-fixes
 
-# Run ruff format
+# Run ruff format with respect to project configuration
 echo "Running ruff format..."
 ruff format src tests scripts
 
-# Fix SQL-specific whitespace issues after ruff (only trailing whitespace, avoid blank line removal)
-echo "Fixing SQL trailing whitespace issues in BigQuery provider..."
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS - Only fix trailing whitespace after SQL keywords
-    find src/models -name "*.py" -type f -exec sed -i '' -E 's/([A-Z]+) +$/\1/g' {} \;
-else
-    # Linux (CI environment) - Only fix trailing whitespace after SQL keywords
-    find src/models -name "*.py" -type f -exec sed -i -E 's/([A-Z]+) +$/\1/g' {} \;
-fi
-echo "SQL whitespace issues fixed!"
+# Post-process files to ensure custom spacing rules are applied
+echo "Applying custom spacing rules with custom formatter..."
+find src tests scripts -name "*.py" -print0 | xargs -0 python3 scripts/custom_formatter.py
 
 # Show remaining issues (mainly line length issues that need manual intervention)
 echo -e "\n\nRemaining issues that need manual attention:"

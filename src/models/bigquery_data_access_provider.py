@@ -26,17 +26,13 @@ class BigQueryProvider:
         bpd.options.bigquery.project = project
         bpd.options.display.progress_bar = None
 
-    @retry_with_backoff(
-        max_attempts=10,
-        min_wait=1,
-        max_wait=60,
-        exceptions=(ConnectionError, socket.timeout)
-    )
+
+    @retry_with_backoff(max_attempts=10, min_wait=1, max_wait=60, exceptions=(ConnectionError, socket.timeout))
     def _read_gbq_dataframe(self, query: str) -> DataFrame:
         """
         Execute a read query on Google BigQuery and return the results as a pandas DataFrame.
         Retries up to max_attempts times on connection errors with exponential backoff.
-        
+
         Note:
             This method uses the bigframes.pandas.read_gbq function to execute the query. It relies on
             Application Default Credentials (ADC) for authentication, primarily using the
@@ -56,6 +52,7 @@ class BigQueryProvider:
 
         # Execute the query with retry logic
         return cast(DataFrame, bpd.read_gbq(query).to_pandas())
+
 
     def _get_indexer_eligibility_query(self, start_date: date, end_date: date) -> str:
         """
@@ -162,19 +159,20 @@ class BigQueryProvider:
             total_good_days_online DESC, good_responses DESC
         """
 
+
     def fetch_indexer_issuance_eligibility_data(self, start_date: date, end_date: date) -> DataFrame:
         """
         Fetch data from Google BigQuery, used to determine indexer issuance eligibility, and compute
         each indexer's issuance eligibility status.
-        
+
         Depends on:
             - _get_indexer_eligibility_query()
             - _read_gbq_dataframe()
-            
+
         Args:
             start_date (date): The start date for the data to fetch from BigQuery.
             end_date (date): The end date for the data to fetch from BigQuery.
-            
+
         Returns:
             DataFrame: DataFrame containing a range of metrics for each indexer.
                 The DataFrame contains the following columns:

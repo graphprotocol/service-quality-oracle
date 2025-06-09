@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class BlockchainClient:
     """Handles all blockchain interactions"""
-    
+
     def __init__(self, rpc_providers: List[str], contract_address: str, project_root: Path):
         """
         Initialize the blockchain client.
@@ -47,7 +47,7 @@ class BlockchainClient:
             abi_path = self.project_root / "contracts" / "contract.abi.json"
             with open(abi_path) as f:
                 return json.load(f)
-        
+
         # If the ABI file cannot be loaded, raise an error
         except Exception as e:
             logger.error(f"Failed to load contract ABI: {str(e)}")
@@ -78,7 +78,7 @@ class BlockchainClient:
                 provider_type = "primary" if i == 0 else f"backup #{i}"
                 logger.info(f"Attempting to connect to {provider_type} RPC provider: {rpc_url}")
                 w3 = Web3(Web3.HTTPProvider(rpc_url))
-                
+
                 # Test connection
                 if w3.is_connected():
                     logger.info(f"Successfully connected to {provider_type} RPC provider")
@@ -87,21 +87,21 @@ class BlockchainClient:
                         address=Web3.to_checksum_address(contract_address), abi=contract_abi
                     )
 
-                    # 
+                    #
                     return w3, contract, rpc_url
 
                 # If we could not connect log the error
                 else:
                     logger.warning(f"Could not connect to {provider_type} RPC provider: {rpc_url}")
-                
+
             # If we get an error, log the error
             except Exception as e:
                 provider_type = "primary" if i == 0 else f"backup #{i}"
                 logger.warning(f"Error connecting to {provider_type} RPC provider {rpc_url}: {str(e)}")
-        
+
         # If we get here, all providers failed
         raise ConnectionError(f"Failed to connect to any of {len(rpc_providers)} RPC providers: {rpc_providers}")
-    
+
 
     def _setup_transaction_account(self, private_key: str, w3: Web3) -> str:
         """
@@ -118,7 +118,7 @@ class BlockchainClient:
             account = w3.eth.account.from_key(private_key)
             logger.info(f"Using account: {account.address}")
             return account.address
-        
+
         # If the account cannot be retrieved, log the error and raise an exception
         except Exception as e:
             logger.error(f"Failed to retrieve account from private key: {str(e)}")
@@ -126,19 +126,18 @@ class BlockchainClient:
 
 
     def _estimate_transaction_gas(
-        self, w3: Web3, contract_func: Any, indexer_addresses: List[str], 
-        data_bytes: bytes, sender_address: str
+        self, w3: Web3, contract_func: Any, indexer_addresses: List[str], data_bytes: bytes, sender_address: str
     ) -> int:
         """
         Estimate gas for the transaction with 25% buffer.
-        
+
         Args:
             w3: Web3 instance
             contract_func: Contract function to call
             indexer_addresses: List of indexer addresses
             data_bytes: Data bytes for the transaction
             sender_address: Transaction sender address
-            
+
         Returns:
             int: Estimated gas with 25% buffer
         """
@@ -158,12 +157,12 @@ class BlockchainClient:
     def _determine_transaction_nonce(self, w3: Web3, sender_address: str, replace: bool) -> int:
         """
         Determine the appropriate nonce for the transaction.
-        
+
         Args:
             w3: Web3 instance
             sender_address: Transaction sender address
             replace: Whether to replace pending transactions
-            
+
         Returns:
             int: Transaction nonce to use
         """
@@ -172,29 +171,28 @@ class BlockchainClient:
             nonce = w3.eth.get_transaction_count(sender_address)
             logger.info(f"Using next available nonce: {nonce}")
             return nonce
-        
+
         # If we are replacing a pending transaction, try to find and replace it
         logger.info("Attempting to find and replace a pending transaction")
-        
+
         # Try to find pending transactions
         try:
             pending_txs = w3.eth.get_block("pending", full_transactions=True)
             sender_pending_txs = [
-                tx for tx in pending_txs.transactions 
-                if hasattr(tx, "from") and tx["from"] == sender_address
+                tx for tx in pending_txs.transactions if hasattr(tx, "from") and tx["from"] == sender_address
             ]
-            
+
             # If we found pending transactions, use the nonce of the first pending transaction
             if sender_pending_txs:
                 sender_pending_txs.sort(key=lambda x: x["nonce"])
                 nonce = sender_pending_txs[0]["nonce"]
                 logger.info(f"Found pending transaction with nonce {nonce} for replacement")
                 return nonce
-        
+
         # If we could not find pending transactions log the issue
         except Exception as e:
             logger.warning(f"Could not check pending transactions: {str(e)}")
-        
+
         # Check for nonce gaps
         try:
             current_nonce = w3.eth.get_transaction_count(sender_address, "pending")
@@ -202,11 +200,11 @@ class BlockchainClient:
             if current_nonce > latest_nonce:
                 logger.info(f"Detected nonce gap: latest={latest_nonce}, pending={current_nonce}")
                 return latest_nonce
-        
+
         # If we could not check nonce gaps log the issue
         except Exception as e:
             logger.warning(f"Could not check nonce gap: {str(e)}")
-        
+
         # Fallback to next available nonce
         nonce = w3.eth.get_transaction_count(sender_address)
         logger.info(f"Using next available nonce: {nonce}")
@@ -220,22 +218,22 @@ class BlockchainClient:
             latest_block = w3.eth.get_block("latest")
             base_fee = latest_block["baseFeePerGas"]
             logger.info(f"Latest block base fee: {base_fee/1e9:.2f} gwei")
-        
+
         # If the base fee cannot be retrieved, use a fallback value
         except Exception as e:
             logger.warning(f"Could not get base fee: {e}")
             base_fee = w3.to_wei(10, "gwei")
-        
+
         # Try to get the max priority fee
         try:
             max_priority_fee = w3.eth.max_priority_fee
             logger.info(f"Max priority fee: {max_priority_fee/1e9:.2f} gwei")
-        
+
         # If the max priority fee cannot be retrieved, use a fallback value
         except Exception as e:
             logger.warning(f"Could not get max priority fee: {e}")
             max_priority_fee = w3.to_wei(2, "gwei")  # fallback
-        
+
         # Return the base fee and max priority fee
         return base_fee, max_priority_fee
 
@@ -268,14 +266,19 @@ class BlockchainClient:
             tx_params["maxFeePerGas"] = max_fee_per_gas
             tx_params["maxPriorityFeePerGas"] = max_priority_fee_per_gas
             logger.info(f"Standard gas: {max_fee_per_gas/1e9:.2f} gwei")
-        
+
         logger.info(f"Transaction parameters: nonce={nonce}, gas={gas_limit}, chain_id={chain_id}")
         return tx_params
 
 
     def _build_and_sign_transaction(
-        self, w3: Web3, contract_func: Any, indexer_addresses: List[str], 
-        data_bytes: bytes, tx_params: Dict, private_key: str
+        self,
+        w3: Web3,
+        contract_func: Any,
+        indexer_addresses: List[str],
+        data_bytes: bytes,
+        tx_params: Dict,
+        private_key: str,
     ):
         """Build and sign the transaction."""
         # Attempt to build the transaction
@@ -297,7 +300,7 @@ class BlockchainClient:
             signed_tx = w3.eth.account.sign_transaction(transaction, private_key)
             logger.info("Transaction signed successfully")
             return signed_tx
-    
+
         # If the transaction cannot be signed, log the error and raise an exception
         except Exception as e:
             logger.error(f"Failed to sign transaction: {e}")
@@ -309,19 +312,19 @@ class BlockchainClient:
         # If the error message contains "insufficient funds", log the error
         if "insufficient funds" in error_msg.lower():
             logger.error("Insufficient funds to pay for gas")
-        
+
         # If the error message contains "nonce too low", log the error
         elif "nonce too low" in error_msg.lower():
             logger.error("Nonce is too low - transaction may have already been sent")
-        
+
         # If the error message contains "nonce too high", log the error
         elif "nonce too high" in error_msg.lower():
             logger.error("Nonce is too high - there may be pending transactions")
-        
+
         # If the error message contains "gas", log the error
         elif "gas" in error_msg.lower():
             logger.error("Gas-related issue - transaction may consume too much gas")
-        
+
         # If the error message contains "400", log the error
         elif "400" in error_msg:
             logger.error("HTTP 400 Bad Request - RPC provider rejected the request")
@@ -334,14 +337,14 @@ class BlockchainClient:
             tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
             logger.info(f"Transaction sent! Hash: {tx_hash.hex()}")
             return tx_hash.hex()
-    
+
         # If the transaction could not be sent, log the error and raise an exception
         except ValueError as e:
             error_msg = str(e)
             logger.error(f"Transaction rejected by network: {error_msg}")
             self._handle_transaction_error(error_msg)
             raise
-            
+
         # If we get an unexpected error, log the error and raise an exception
         except Exception as e:
             logger.error(f"Unexpected error sending transaction: {e}")
@@ -383,20 +386,20 @@ class BlockchainClient:
         try:
             # Get gas prices
             base_fee, max_priority_fee = self._get_gas_prices(w3, replace)
-            
+
             # Build transaction parameters
             tx_params = self._build_transaction_params(
                 sender_address, nonce, chain_id, gas_limit, base_fee, max_priority_fee, replace
             )
-            
+
             # Build and sign transaction
             signed_tx = self._build_and_sign_transaction(
                 w3, contract_func, indexer_addresses, data_bytes, tx_params, private_key
             )
-            
+
             # Send transaction
             return self._send_signed_transaction(w3, signed_tx)
-        
+
         # If we get an error, log the error and raise an exception
         except Exception as e:
             logger.error(f"Error in _build_and_send_transaction: {e}")
@@ -406,12 +409,12 @@ class BlockchainClient:
     def _execute_complete_transaction(self, w3: Web3, contract: Contract, params: Dict) -> str:
         """
         Execute the complete transaction process using a single RPC connection.
-        
+
         Args:
             w3: Web3 instance
             contract: Contract instance
             params: Dictionary containing all transaction parameters
-            
+
         Returns:
             str: Transaction hash
         """
@@ -423,13 +426,13 @@ class BlockchainClient:
         sender_address = params["sender_address"]
         chain_id = params["chain_id"]
         replace = params["replace"]
-        
+
         # Validate contract function exists
         if not hasattr(contract.functions, contract_function):
             raise ValueError(f"Contract {contract.address} does not have function: {contract_function}")
-        
+
         contract_func = getattr(contract.functions, contract_function)
-        
+
         # Log transaction details
         logger.info(f"Contract address: {contract.address}")
         logger.info(f"Contract function: {contract_function}")
@@ -438,14 +441,16 @@ class BlockchainClient:
         logger.info(f"Chain ID: {chain_id}")
         logger.info(f"Sender address: {sender_address}")
         logger.info(f"Using RPC: {w3.provider.endpoint_uri}")
-        
+
         # Check account balance
         balance_wei = w3.eth.get_balance(sender_address)
         balance_eth = w3.from_wei(balance_wei, "ether")
         logger.info(f"Account balance: {balance_eth} ETH")
-        
+
         # All transaction steps with the same RPC connection
-        gas_limit = self._estimate_transaction_gas(w3, contract_func, indexer_addresses, data_bytes, sender_address)
+        gas_limit = self._estimate_transaction_gas(
+            w3, contract_func, indexer_addresses, data_bytes, sender_address
+        )
         nonce = self._determine_transaction_nonce(w3, sender_address, replace)
         tx_hash = self._build_and_send_transaction(
             w3,
@@ -459,19 +464,20 @@ class BlockchainClient:
             nonce,
             replace,
         )
-        
+
         # Wait for receipt with the same connection
         try:
             tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
             if tx_receipt["status"] == 1:
                 logger.info(
-                    f"Transaction confirmed in block {tx_receipt['blockNumber']}, gas used: {tx_receipt['gasUsed']}"
+                    f"Transaction confirmed in block {tx_receipt['blockNumber']}, "
+                    f"gas used: {tx_receipt['gasUsed']}"
                 )
             else:
                 logger.error(f"Transaction failed on-chain: {tx_hash}")
         except Exception as e:
             logger.warning(f"Could not get transaction receipt: {str(e)} (transaction may still be pending)")
-        
+
         return tx_hash
 
 
@@ -481,15 +487,15 @@ class BlockchainClient:
         """
         Execute a transaction operation with automatic RPC failover.
         This function tries each RPC provider in sequence until one succeeds.
-        
+
         Args:
             operation_name: Human-readable name for the transaction operation
             operation_func: Function that takes (w3, contract, operation_params) and executes the operation
             operation_params: Parameters for the operation
-            
+
         Returns:
             Result of the operation_func
-            
+
         Raises:
             Exception: If all RPC providers fail
         """
@@ -503,7 +509,9 @@ class BlockchainClient:
                 logger.info(f"Attempting to do '{operation_name}' using RPC provider: {rpc_url}")
 
                 # Get fresh connection for this rpc provider attempt
-                w3, contract, _ = self._get_working_web3_connection([rpc_url], self.contract_address, self.contract_abi)
+                w3, contract, _ = self._get_working_web3_connection(
+                    [rpc_url], self.contract_address, self.contract_abi
+                )
 
                 # Execute the operation with this rpc provider and return the result
                 return operation_func(w3, contract, operation_params)
@@ -512,7 +520,7 @@ class BlockchainClient:
             except Exception as e:
                 logger.warning(f"{operation_name} failed with RPC provider {rpc_url}: {str(e)}")
                 last_exception = e
-        
+
         # If we get here, all providers failed
         logger.error(f"{operation_name} failed on all {len(self.rpc_providers)} RPC providers")
         raise last_exception or Exception(f"All RPC providers failed for {operation_name}")
@@ -529,7 +537,7 @@ class BlockchainClient:
     ) -> str:
         """
         Send a transaction to allow a subset of indexers to claim issuance rewards.
-        
+
         Args:
             indexer_addresses: List of indexer addresses to allow issuance
             private_key: Private key for transaction signing
@@ -537,17 +545,17 @@ class BlockchainClient:
             contract_function: Contract function name to call
             replace: Flag to replace pending transactions
             data_bytes: Optional bytes data to pass to contract function
-            
+
         Returns:
             str: Transaction hash
         """
         # Set up account
         temp_w3 = Web3()
         sender_address = self._setup_transaction_account(private_key, temp_w3)
-        
+
         # Convert addresses to checksum format
         checksum_addresses = [Web3.to_checksum_address(addr) for addr in indexer_addresses]
-        
+
         # Prepare all parameters for the transaction
         transaction_params = {
             "private_key": private_key,
@@ -558,7 +566,7 @@ class BlockchainClient:
             "chain_id": chain_id,
             "replace": replace,
         }
-        
+
         # Execute the transaction with RPC failover
         try:
             return self._execute_transaction_with_rpc_failover(
@@ -583,7 +591,7 @@ class BlockchainClient:
     ) -> List[str]:
         """
         Allow the issuance eligibility status of a list of indexers in batches.
-        
+
         Args:
             indexer_addresses: List of indexer addresses to allow
             private_key: Private key for transaction signing
@@ -592,7 +600,7 @@ class BlockchainClient:
             replace: Optional flag to replace pending transactions
             batch_size: Optional batch size for processing large lists
             data_bytes: Optional bytes data to pass to contract function
-            
+
         Returns:
             List[str]: List of transaction hashes from successful batches
         """
@@ -602,25 +610,25 @@ class BlockchainClient:
             return []
         if batch_size <= 0:
             raise ValueError("batch_size must be positive")
-        
+
         # Calculate number of batches to process
         total_indexers = len(indexer_addresses)
         num_batches = (total_indexers + batch_size - 1) // batch_size
         logger.info(f"Processing {total_indexers} indexers in {num_batches} batch(es) of {batch_size}")
-        
+
         try:
             tx_links = []
             # Validate and format private key
             validated_private_key = validate_and_format_private_key(private_key)
-            
+
             # Process each batch
             for i in range(num_batches):
                 start_idx = i * batch_size
                 end_idx = min(start_idx + batch_size, total_indexers)
                 batch_indexers = indexer_addresses[start_idx:end_idx]
-                
+
                 logger.info(f"Processing batch {i+1}/{num_batches} with {len(batch_indexers)} indexers")
-                
+
                 # Try to send the transaction to the network (uses RPC failover)
                 try:
                     tx_hash = self.send_transaction_to_allow_indexers(
@@ -633,7 +641,7 @@ class BlockchainClient:
                     )
                     tx_links.append(f"https://sepolia.arbiscan.io/tx/{tx_hash}")
                     logger.info(f"Batch {i+1} transaction successful: {tx_hash}")
-                
+
                 # If we get an error, log the error and raise an exception
                 except Exception as e:
                     logger.error(f"Error processing batch {i+1} due to: {e}")
@@ -647,4 +655,4 @@ class BlockchainClient:
 
         except KeyValidationError as e:
             logger.error(f"Private key validation failed: {e}")
-            raise ValueError(f"Invalid private key: {e}") from e 
+            raise ValueError(f"Invalid private key: {e}") from e

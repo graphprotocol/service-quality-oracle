@@ -20,6 +20,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger("oracle-scheduler")
+
 # Path to store last run info
 LAST_RUN_FILE = "/app/data/last_run.txt"
 HEALTHCHECK_FILE = "/app/healthcheck"
@@ -81,7 +82,7 @@ def run_oracle(force_date=None):
     today = force_date or datetime.now().date()
     start_time = datetime.now()
     logger.info(f"Starting Service Quality Oracle run at {start_time} for date {today}")
-    
+
     # Ensure we have valid google credentials before proceeding
     credential_manager.setup_google_credentials()
 
@@ -209,24 +210,32 @@ def initialize():
         # Set timezone for consistent scheduling
         timezone = pytz.timezone("UTC")
         logger.info(f"Using timezone: {timezone}")
+
         # Schedule the job
         run_time = config["scheduled_run_time"]
         logger.info(f"Scheduling daily run at {run_time} UTC")
         schedule.every().day.at(run_time).do(run_oracle)
+
         # Create initial healthcheck file
         update_healthcheck("Scheduler initialized")
+
         # Run on startup if requested
         if os.environ.get("RUN_ON_STARTUP", "false").lower() == "true":
             logger.info("RUN_ON_STARTUP=true, executing oracle immediately")
             run_oracle()
+
         else:
             # Check for missed runs
             logger.info("Checking for missed runs...")
+
             if check_missed_runs():
                 logger.info("Executed missed run successfully")
+
             else:
                 logger.info("No missed runs to execute")
+
         return config
+
     except Exception as e:
         logger.error(f"Failed to initialize scheduler: {e}", exc_info=True)
 

@@ -29,13 +29,13 @@ def bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eli
 ) -> List[str]:
     """
     Main function to fetch and process data from BigQuery.
-    
+
     Args:
         start_date: Start date for BigQuery data
         end_date: End date for BigQuery data
         current_date: Current date for output directory
         max_age_before_deletion: Maximum age in days before deleting old data
-        
+
     Returns:
         List[str]: List of indexers that should be allowed issuance based on BigQuery data
     """
@@ -43,16 +43,15 @@ def bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eli
     config_manager = ConfigManager()
     config = config_manager.load_and_validate_config()
     project_root = config_manager.get_project_root()
-    
+
     # Initialize bigquery provider
     bq_provider = BigQueryProvider(
-        project=str(config["bigquery_project_id"]), 
-        location=str(config["bigquery_location"])
+        project=str(config["bigquery_project_id"]), location=str(config["bigquery_location"])
     )
 
     # Initialize data processor
     data_processor = DataProcessor(project_root)
-    
+
     try:
         # Fetch eligibility dataframe
         logger.info(f"Fetching eligibility data between {start_date} and {end_date}")
@@ -60,10 +59,10 @@ def bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eli
             start_date, end_date
         )
         logger.info(f"Retrieved issuance eligibility data for {len(indexer_issuance_eligibility_data)} indexers")
-        
+
         # Get output directory for current date
         date_dir = data_processor.get_date_output_directory(current_date)
-        
+
         # Export data and get indexer lists
         logger.info(f"Attempting to export indexer issuance eligibility lists to: {date_dir}")
         eligible_indexers, ineligible_indexers = (
@@ -72,21 +71,21 @@ def bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eli
             )
         )
         logger.info("Exported indexer issuance eligibility lists.")
-        
+
         # Clean old eligibility lists
         logger.info("Cleaning old eligibility lists.")
         data_processor.clean_old_date_directories(max_age_before_deletion)
-        
+
         # Log final summary
         logger.info(f"Processing complete. Output available at: {date_dir}")
         logger.info(
-            f"No. of eligible indexers to insert into smart contract on {date.today()} is: {len(eligible_indexers)}"
+            f"No. of eligible indexers to insert into smart contract on "
+            f"{date.today()} is: {len(eligible_indexers)}"
         )
-        
+
         # Return list of indexers that should be allowed issuance
         return eligible_indexers
-        
+
     except Exception as e:
         logger.error(f"Transaction failed on all RPC providers: {str(e)}")
         raise
-    

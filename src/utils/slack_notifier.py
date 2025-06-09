@@ -30,10 +30,7 @@ class SlackNotifier:
 
 
     @retry_with_backoff(
-        max_attempts=8,
-        min_wait=1,
-        max_wait=128,
-        exceptions=(requests.exceptions.RequestException,)
+        max_attempts=8, min_wait=1, max_wait=128, exceptions=(requests.exceptions.RequestException,)
     )
     def _send_message(self, payload: Dict) -> bool:
         """
@@ -74,7 +71,6 @@ class SlackNotifier:
         except requests.exceptions.RequestException as e:
             logger.warning(f"Slack notification failed: {str(e)}")
             raise
-
 
 
     def _create_payload(self, text: str, fields: List[Dict], color: str = "good") -> Dict:

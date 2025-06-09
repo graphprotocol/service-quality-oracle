@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 
 class ConfigManager:
     """Centralized configuration manager with validation and credential handling."""
-    
+
     def __init__(self):
         self._config = None
-        
+
 
     def _validate_required_fields(self, data: dict, required_fields: list[str], context: str) -> None:
         """
@@ -67,20 +67,22 @@ class ConfigManager:
         # If the configuration has already been loaded, return it
         if self._config is not None:
             return self._config
-        
+
         try:
             # Load configuration using config loader
             loader = ConfigLoader()
             config = loader.get_flat_config()
             logger.info("Successfully loaded configuration")
-            
+
             # Validate and convert chain_id to integer
             if config.get("chain_id"):
                 try:
                     config["chain_id"] = int(config["chain_id"])
                 except ValueError as e:
-                    raise ValueError(f"Invalid BLOCKCHAIN_CHAIN_ID: {config['chain_id']} - must be an integer.") from e
-                    
+                    raise ValueError(
+                        f"Invalid BLOCKCHAIN_CHAIN_ID: {config['chain_id']} - must be an integer."
+                    ) from e
+
             # Validate scheduled run time format (HH:MM)
             if config.get("scheduled_run_time"):
                 try:
@@ -90,7 +92,7 @@ class ConfigManager:
                         f"Invalid SCHEDULED_RUN_TIME format: {config['scheduled_run_time']} - "
                         "must be in HH:MM format"
                     ) from e
-                    
+
             # Validate blockchain configuration contains all required fields
             required_fields = [
                 "private_key",
@@ -100,11 +102,11 @@ class ConfigManager:
                 "scheduled_run_time",
             ]
             self._validate_required_fields(config, required_fields, "Missing required blockchain configuration")
-            
+
             # Validate RPC providers
             if not config.get("rpc_providers") or not isinstance(config["rpc_providers"], list):
                 raise ValueError("BLOCKCHAIN_RPC_URLS must be a list of valid RPC URLs")
-            
+
             # Set the configuration in the class & return it
             self._config = config
             return config
@@ -125,7 +127,7 @@ class ConfigManager:
         docker_path = Path("/app")
         if docker_path.exists():
             return docker_path
-            
+
         # If the /app directory doesn't exist fall back to marker files
         current_path = Path(__file__).parent
         while current_path != current_path.parent:
@@ -134,14 +136,14 @@ class ConfigManager:
                 return current_path
             # Attempt to traverse upwards (will not work if the directory has no parent)
             current_path = current_path.parent
-            
+
         # If we got here, something is wrong
         raise FileNotFoundError("Could not find project root directory. Investigate.")
 
 
 class CredentialManager:
     """Handles credential management for Google Cloud services."""
-    
+
     def __init__(self):
         pass
 
@@ -184,20 +186,20 @@ class CredentialManager:
             # Parse the credentials
             creds_data = json.loads(creds_env)
             cred_type = creds_data.get("type", "")
-            
+
             # Validate the credentials data based on the type
             if cred_type == "authorized_user":
                 required_fields = ["client_id", "client_secret", "refresh_token"]
                 self._validate_required_fields(
                     creds_data, required_fields, "Incomplete authorized_user credentials"
                 )
-            
+
             elif cred_type == "service_account":
                 required_fields = ["private_key", "client_email", "project_id"]
                 self._validate_required_fields(
                     creds_data, required_fields, "Incomplete service_account credentials"
                 )
-            
+
             else:
                 raise ValueError(
                     f"Unsupported credential type: '{cred_type}'. Expected 'authorized_user' or 'service_account'"
@@ -207,7 +209,7 @@ class CredentialManager:
         except Exception as e:
             logger.error(f"Failed to parse and validate credentials JSON: {e}")
             raise ValueError(f"Invalid credentials JSON: {e}") from e
-        
+
         # Return the parsed credentials
         return creds_data
 
@@ -230,7 +232,7 @@ class CredentialManager:
             # Set credentials globally for GCP libraries
             google.auth._default._CREDENTIALS = credentials  # type: ignore[attr-defined]
             logger.info("Successfully loaded user account credentials from environment variable")
-        
+
         # Clear credentials from memory
         finally:
             if "creds_data" in locals():
@@ -245,19 +247,17 @@ class CredentialManager:
         # Try to set up the credentials
         try:
             # Create credentials object directly from dict
-            credentials = service_account.Credentials.from_service_account_info(
-                creds_data
-            )
+            credentials = service_account.Credentials.from_service_account_info(creds_data)
 
             # Set credentials globally for GCP libraries
             google.auth._default._CREDENTIALS = credentials  # type: ignore[attr-defined]
             logger.info("Successfully loaded service account credentials from environment variable")
-        
+
         # If the credentials creation fails, raise an error
         except Exception as e:
             logger.error(f"Failed to create service account credentials: {e}")
             raise ValueError(f"Invalid service account credentials: {e}") from e
-        
+
         # Clear the original credentials dict from memory if it exists
         finally:
             if "creds_data" in locals():
@@ -275,14 +275,14 @@ class CredentialManager:
         """
         # Get the account credentials from the environment variable
         creds_env = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-        
+
         # If the credentials are not set, log a warning and return
         if not creds_env:
             logger.warning(
                 "GOOGLE_APPLICATION_CREDENTIALS not set. Falling back to gcloud CLI user credentials if available"
             )
             return
-            
+
         # Case 1: JSON credentials provided inline
         if creds_env.strip().startswith("{"):
             creds_data = None
@@ -290,28 +290,29 @@ class CredentialManager:
                 # Parse and validate credentials
                 creds_data = self._parse_and_validate_credentials_json(creds_env)
                 cred_type = creds_data.get("type")
-                
+
                 # Set up credentials based on type
                 if cred_type == "authorized_user":
                     self._setup_user_credentials_in_memory(creds_data.copy())
                 elif cred_type == "service_account":
                     self._setup_service_account_credentials_in_memory(creds_data.copy())
-                    
+
             except Exception as e:
                 logger.error("Failed to set up credentials from environment variable")
                 raise ValueError(f"Error processing inline credentials: {e}") from e
             finally:
                 if creds_data is not None:
                     creds_data.clear()
-        
+
         # Case 2: File path provided
         elif os.path.exists(creds_env):
             logger.info(f"Using credentials file: {creds_env}")
-            
+
         # Case 3: Invalid format
         else:
             logger.warning(
-                f"GOOGLE_APPLICATION_CREDENTIALS appears to be neither valid JSON nor existing file path: {creds_env[:50]}..."
+                f"GOOGLE_APPLICATION_CREDENTIALS appears to be neither valid JSON "
+                f"nor existing file path: {creds_env[:50]}..."
             )
             logger.warning("Falling back to gcloud CLI authentication if available")
 
@@ -319,25 +320,26 @@ class CredentialManager:
     def validate_google_credentials(self) -> bool:
         """
         Validate that Google credentials are properly configured and working.
-        
+
         Returns:
             bool: True if credentials are valid and working
         """
         # Try to validate the credentials
         try:
             import google.auth
+
             credentials, project = google.auth.default()
-            
+
             # If the credentials are valid, log the success and return True
             if credentials:
                 logger.info(f"Google credentials validated successfully for project: {project}")
                 return True
-        
+
             # If the credentials are not valid, log the error and return False
             else:
                 logger.error("No valid Google credentials found")
                 return False
-        
+
         # If the credentials could not be validated log the error
         except Exception as e:
             logger.error(f"Google credentials validation failed: {e}")
@@ -346,4 +348,4 @@ class CredentialManager:
 
 # Global instances for easy access
 config_manager = ConfigManager()
-credential_manager = CredentialManager() 
+credential_manager = CredentialManager()

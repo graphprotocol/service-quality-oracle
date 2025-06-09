@@ -59,9 +59,11 @@ def main():
     try:
         # Attempt to load google bigquery data access credentials
         try:
+            # fmt: off
             import google.auth
-
             _ = google.auth.default()
+            # fmt: on
+
         # If credentials could not be loaded, set them up in memory via helper function using environment variables
         except Exception:
             credential_manager.setup_google_credentials()

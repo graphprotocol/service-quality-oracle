@@ -7,16 +7,17 @@ from functools import wraps
 from typing import Any, Callable, Type, Union
 
 from tenacity import (
+    before_sleep_log,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    before_sleep_log,
 )
 
 logger = logging.getLogger(__name__)
 
 
+# fmt: off
 def retry_with_backoff(
     max_attempts: int = 5,
     min_wait: int = 1,
@@ -27,7 +28,7 @@ def retry_with_backoff(
 ) -> Callable:
     """
     Retry decorator with exponential backoff.
-    
+
     Args:
         max_attempts: Maximum number of retry attempts (default: 5)
         min_wait: Minimum wait time between retries in seconds (default: 1)
@@ -35,7 +36,7 @@ def retry_with_backoff(
         multiplier: Exponential backoff multiplier (default: 2)
         exceptions: Exception types to retry on (default: Exception)
         reraise: Whether to reraise the exception after all attempts fail (default: True)
-    
+
     Returns:
         Decorated function with retry logic
     """
@@ -51,7 +52,9 @@ def retry_with_backoff(
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             return func(*args, **kwargs)
-        
+
         return wrapper
-    
+
+
     return decorator
+# fmt: on

@@ -75,7 +75,7 @@ class DataProcessor:
     def clean_old_date_directories(self, max_age_before_deletion: int) -> None:
         """
         Remove old date directories to prevent unlimited growth.
-        
+
         Args:
             max_age_before_deletion: Maximum age in days before deleting data output
         """
@@ -97,7 +97,7 @@ class DataProcessor:
                 # Try to parse the directory name as a date
                 dir_date = datetime.strptime(item.name, "%Y-%m-%d").date()
                 age_days = (today - dir_date).days
-                
+
                 # Remove if older than max_age_before_deletion
                 if age_days > max_age_before_deletion:
                     logger.info(f"Removing old data directory: {item} ({age_days} days old)")
@@ -118,10 +118,10 @@ class DataProcessor:
     def get_date_output_directory(self, current_date: date) -> Path:
         """
         Get the output directory path for a specific date.
-        
+
         Args:
             current_date: Date for which to get the output directory
-            
+
         Returns:
             Path: Path to the date-specific output directory
         """
@@ -138,24 +138,24 @@ class DataProcessor:
     def validate_dataframe_structure(self, df: pd.DataFrame, required_columns: List[str]) -> bool:
         """
         Validate that a DataFrame has the required columns.
-        
+
         Args:
             df: DataFrame to validate
             required_columns: List of required column names
-            
+
         Returns:
             bool: True if all required columns are present
-            
+
         Raises:
             ValueError: If required columns are missing
         """
         # Check if any required columns are missing
         missing_columns = [col for col in required_columns if col not in df.columns]
-        
+
         # If any required columns are missing, raise an error
         if missing_columns:
             raise ValueError(f"DataFrame missing required columns: {missing_columns}")
-        
+
         # If all required columns are present, return True
         return True
 
@@ -163,18 +163,18 @@ class DataProcessor:
     def get_directory_size_info(self) -> dict:
         """
         Get information about the output directory size and file counts.
-        
+
         Returns:
             dict: Information about directory size and contents
         """
         # If the directory doesn't exist, return a dictionary with 0 values
         if not self.output_dir.exists():
             return {"exists": False, "total_size_bytes": 0, "directory_count": 0, "file_count": 0}
-        
+
         total_size = 0
         file_count = 0
         directory_count = 0
-        
+
         # Get the total size of the directory and the number of files and directories
         for item in self.output_dir.rglob("*"):
             if item.is_file():
@@ -182,7 +182,7 @@ class DataProcessor:
                 file_count += 1
             elif item.is_dir():
                 directory_count += 1
-        
+
         # Return the information about the directory size and contents
         return {
             "exists": True,

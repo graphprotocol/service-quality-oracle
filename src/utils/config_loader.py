@@ -59,8 +59,9 @@ class ConfigLoader:
 
         raise ConfigurationError("Could not find config.toml in project root or Docker container")
 
-
     # TODO: check this...
+
+
     def _substitute_env_vars(self, config_toml: Any) -> Any:
         """
         Recursively substitute environment variables in the config.
@@ -115,15 +116,15 @@ class ConfigLoader:
             # Load the TOML configuration
             with open(self.config_path, "rb") as f:
                 config = tomllib.load(f)
-            
+
             logger.info(f"Loaded configuration from: {self.config_path}")
-            
+
             # Substitute environment variables throughout the configuration
             config = self._substitute_env_vars(config)
-            
+
             logger.info("Successfully loaded configuration with environment variables")
             return config
-            
+
         except FileNotFoundError as e:
             raise ConfigurationError(f"Configuration not found: {self.config_path}") from e
         except ConfigurationError:
@@ -178,9 +179,11 @@ class ConfigLoader:
             for var in env_vars:
                 if os.getenv(var) is None:
                     missing_vars.append(var)
+
         elif isinstance(obj, dict):
             for value in obj.values():
                 missing_vars.extend(self._collect_missing_env_vars(value))
+
         elif isinstance(obj, list):
             for item in obj:
                 missing_vars.extend(self._collect_missing_env_vars(item))
@@ -198,35 +201,37 @@ class ConfigLoader:
         """
         config = self.load_config()
 
+        # fmt: off
         # Convert nested structure to flat format
         flat_config = {
             # BigQuery settings
             "bigquery_location": config.get("bigquery", {}).get("BIGQUERY_LOCATION_ID", "US"),
             "bigquery_project_id": config.get("bigquery", {}).get("BIGQUERY_PROJECT_ID", "graph-mainnet"),
             "bigquery_dataset_id": config.get("bigquery", {}).get("BIGQUERY_DATASET_ID", "internal_metrics"),
-            
+
             # Blockchain settings
             "contract_address": config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),
             "contract_function": config.get("blockchain", {}).get("BLOCKCHAIN_FUNCTION_NAME"),
             "chain_id": config.get("blockchain", {}).get("BLOCKCHAIN_CHAIN_ID"),
             "rpc_providers": self._parse_rpc_urls(config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS", [])),
-            
+
             # Scheduling
             "scheduled_run_time": config.get("scheduling", {}).get("SCHEDULED_RUN_TIME"),
-            
+
             # Subgraph URLs
             "subgraph_url": config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
-            
+
             # Processing settings
             "batch_size": config.get("processing", {}).get("BATCH_SIZE", 125),
             "max_age_before_deletion": config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION", 120),
-            
+
             # Secrets
             "google_application_credentials": config.get("secrets", {}).get("GOOGLE_APPLICATION_CREDENTIALS"),
             "private_key": config.get("secrets", {}).get("BLOCKCHAIN_PRIVATE_KEY"),
             "studio_api_key": config.get("secrets", {}).get("STUDIO_API_KEY"),
             "slack_webhook_url": config.get("secrets", {}).get("SLACK_WEBHOOK_URL"),
         }
+        # fmt: on
 
         return flat_config
 
@@ -246,7 +251,6 @@ class ConfigLoader:
         return valid_providers
 
 
-# Convenience function for easy integration with existing code
 def load_config() -> dict[str, Any]:
     """
     Convenience function to load configuration.
@@ -263,7 +267,6 @@ def load_config() -> dict[str, Any]:
     return loader.get_flat_config()
 
 
-# For startup validation
 def validate_all_required_env_vars() -> None:
     """
     Validate that all required environment variables are set.
