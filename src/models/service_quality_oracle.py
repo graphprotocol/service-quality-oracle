@@ -5,7 +5,6 @@ This module serves as the entry point for the oracle functionality, responsible 
 2. Processing indexer data to determine eligibility
 3. Submitting eligible indexers to the blockchain contract
 4. Sending Slack notifications about run status
-For blockchain interactions and data processing utilities, see issuance_data_access_helper.py.
 """
 
 import logging
@@ -17,13 +16,14 @@ from datetime import date, timedelta
 # Add project root to path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, project_root)
+
 # Import data access utilities with absolute import
 from src.models.issuance_data_access_helper import (
-    _setup_google_credentials_in_memory_from_env_var,
     batch_allow_indexers_issuance_eligibility_smart_contract,
     bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eligible_indexers,
 )
 from src.utils.config_loader import load_config
+from src.utils.config_manager import credential_manager
 from src.utils.slack_notifier import create_slack_notifier
 
 # Set up basic logging
@@ -64,7 +64,7 @@ def main():
             _ = google.auth.default()
         # If credentials could not be loaded, set them up in memory via helper function using environment variables
         except Exception:
-            _setup_google_credentials_in_memory_from_env_var()
+            credential_manager.setup_google_credentials()
 
         try:
             # Fetch + save indexer eligibility data and return eligible list as 'eligible_indexers' array
@@ -91,7 +91,6 @@ def main():
 
                 if slack_notifier:
                     # Calculate batch information for notification
-                    config.get("BATCH_SIZE", 125)
                     batch_count = len(transaction_links) if transaction_links else 0
                     total_processed = len(eligible_indexers)
 
