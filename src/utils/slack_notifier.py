@@ -9,6 +9,8 @@ from typing import Dict, List, Optional
 
 import requests
 
+from src.utils.retry_decorator import retry_with_backoff
+
 # Module-level logger
 logger = logging.getLogger(__name__)
 
@@ -25,8 +27,14 @@ class SlackNotifier:
         """
         self.webhook_url = webhook_url
         self.timeout = 10  # seconds
-        self.max_attempts = 8
 
+
+    @retry_with_backoff(
+        max_attempts=8,
+        min_wait=1,
+        max_wait=128,
+        exceptions=(requests.exceptions.RequestException,)
+    )
     def _send_message(self, payload: Dict) -> bool:
         """
         Send a message to Slack via webhook with exponential backoff retry.
@@ -37,50 +45,37 @@ class SlackNotifier:
         Returns:
             bool: True if message was sent successfully, False otherwise
         """
-        import time
-
         # Get the message type from the payload
         message_type = payload.get("text", "Unknown")
 
         # Log the message type
         logger.info(f"Sending Slack notification: {message_type}")
 
-        # Attempt to send the message self.max_attempts times with exponential backoff
-        for attempt in range(self.max_attempts):
-            try:
-                response = requests.post(
-                    self.webhook_url,
-                    json=payload,
-                    timeout=self.timeout,
-                    headers={"Content-Type": "application/json"},
-                )
+        try:
+            response = requests.post(
+                self.webhook_url,
+                json=payload,
+                timeout=self.timeout,
+                headers={"Content-Type": "application/json"},
+            )
 
-                # If the message is sent successfully, return True
-                if response.status_code == 200:
-                    logger.info("Slack notification sent successfully")
-                    return True
-
+            # If the message is sent successfully, return True
+            if response.status_code == 200:
+                logger.info("Slack notification sent successfully")
+                return True
+            else:
                 # log message failure
-                else:
-                    logger.warning(f"Slack notification failed: {response.status_code}")
+                logger.warning(f"Slack notification failed: {response.status_code}")
+                # Raise an exception to trigger retry
+                response.raise_for_status()
+                return False
 
-            # If there is an error when trying to send the message, log the error
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"Slack notification attempt {attempt + 1} failed: {str(e)}")
+        # If there is an error when trying to send the message, log the error and re-raise
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Slack notification failed: {str(e)}")
+            raise
 
-                # If the last attempt fails, log an error
-                if attempt == self.max_attempts - 1:
-                    logger.error("All Slack notification attempts failed")
 
-                # If the attempt is not the last, wait for the exponential backoff and retry
-                else:
-                    # Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 64s, 128s
-                    wait_time = 2**attempt
-                    logger.info(f"Retrying in {wait_time} seconds...")
-                    time.sleep(wait_time)
-
-        # If the message is not sent successfully, return False
-        return False
 
     def _create_payload(self, text: str, fields: List[Dict], color: str = "good") -> Dict:
         """Create a Slack message payload."""
@@ -95,6 +90,7 @@ class SlackNotifier:
                 }
             ],
         }
+
 
     def send_success_notification(
         self,
@@ -144,7 +140,12 @@ class SlackNotifier:
         payload = self._create_payload("Service Quality Oracle - Success", fields, "good")
 
         # Send message payload to Slack
-        return self._send_message(payload)
+        try:
+            return self._send_message(payload)
+        except Exception as e:
+            logger.error(f"Failed to send success notification: {e}")
+            return False
+
 
     def send_failure_notification(
         self,
@@ -197,7 +198,12 @@ class SlackNotifier:
         payload = self._create_payload("Service Quality Oracle - FAILURE", fields, "danger")
 
         # Send message payload to Slack
-        return self._send_message(payload)
+        try:
+            return self._send_message(payload)
+        except Exception as e:
+            logger.error(f"Failed to send failure notification: {e}")
+            return False
+
 
     def send_info_notification(self, message: str, title: str = "Info") -> bool:
         """
@@ -222,7 +228,11 @@ class SlackNotifier:
         payload = self._create_payload(f"Service Quality Oracle - {title}", fields)
 
         # Send message payload to Slack
-        return self._send_message(payload)
+        try:
+            return self._send_message(payload)
+        except Exception as e:
+            logger.error(f"Failed to send info notification: {e}")
+            return False
 
 
 def create_slack_notifier(webhook_url: Optional[str]) -> Optional[SlackNotifier]:
