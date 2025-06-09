@@ -34,7 +34,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 [tool.ruff.lint.per-file-ignores]
 # Ignore E402 (import not at top) in scripts and specific modules
 "scripts/test_*.py" = ["E402"]
-"src/models/issuance_eligibility_oracle_core.py" = ["E402"]
+"src/models/service_quality_oracle.py" = ["E402"]
 
 # Use unsafe fixes to address typing and other modernization issues
 [tool.ruff.lint.isort]

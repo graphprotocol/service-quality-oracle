@@ -8,6 +8,7 @@ import pytz
 import schedule
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+import src.models.service_quality_oracle as oracle
 from src.models.issuance_data_access_helper import (
     _setup_google_credentials_in_memory_from_env_var,
 )
@@ -91,8 +92,6 @@ def run_oracle(force_date=None):
         load_config()
 
         # Run the oracle
-        import src.models.issuance_eligibility_oracle_core as oracle
-
         oracle.main()
 
         # Record successful run and overwrite the last run date
