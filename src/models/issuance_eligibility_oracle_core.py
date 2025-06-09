@@ -81,7 +81,7 @@ def main():
 
             # Send eligible indexers to the blockchain contract
             try:
-                batch_allow_indexers_issuance_eligibility_smart_contract(
+                transaction_links = batch_allow_indexers_issuance_eligibility_smart_contract(
                     eligible_indexers, replace=True, batch_size=config.get("BATCH_SIZE"), data_bytes=b""
                 )
 
@@ -90,14 +90,17 @@ def main():
                 logger.info(f"Oracle run completed successfully in {execution_time:.2f} seconds")
 
                 if slack_notifier:
-                    # TODO: For success notification, we need to get total processed count
-                    # This would ideally come from the data processing functions
-                    total_processed = len(eligible_indexers)  # Simplified for now
+                    # Calculate batch information for notification
+                    config.get("BATCH_SIZE", 125)
+                    batch_count = len(transaction_links) if transaction_links else 0
+                    total_processed = len(eligible_indexers)
 
                     slack_notifier.send_success_notification(
                         eligible_indexers=eligible_indexers,
                         total_processed=total_processed,
                         execution_time=execution_time,
+                        transaction_links=transaction_links,
+                        batch_count=batch_count,
                     )
 
             except Exception as e:
