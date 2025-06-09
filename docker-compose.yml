@@ -1,5 +1,5 @@
 services:
-  issuance-oracle:
+  service-quality-oracle:
     build: .
     container_name: service-quality-oracle
     image: service-quality-oracle:latest
@@ -30,6 +30,7 @@ services:
       - ARBITRUM_API_KEY=${ARBITRUM_API_KEY}
       - STUDIO_API_KEY=${STUDIO_API_KEY}
       - STUDIO_DEPLOY_KEY=${STUDIO_DEPLOY_KEY}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
 
     # Block processes from gaining higher privileges/capabilities
     security_opt:

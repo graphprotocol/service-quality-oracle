@@ -210,10 +210,14 @@ class ConfigLoader:
             "scheduled_run_time": config.get("scheduling", {}).get("SCHEDULED_RUN_TIME"),
             # Subgraph URLs
             "subgraph_url": config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
+            # Processing settings
+            "batch_size": config.get("processing", {}).get("BATCH_SIZE", 125),
+            "max_age_before_deletion": config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION", 120),
             # Secrets
             "google_application_credentials": config.get("secrets", {}).get("GOOGLE_APPLICATION_CREDENTIALS"),
             "private_key": config.get("secrets", {}).get("BLOCKCHAIN_PRIVATE_KEY"),
             "studio_api_key": config.get("secrets", {}).get("STUDIO_API_KEY"),
+            "slack_webhook_url": config.get("secrets", {}).get("SLACK_WEBHOOK_URL"),
         }
 
         return flat_config

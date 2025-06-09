@@ -1,23 +1,49 @@
 # Service Quality Oracle
 
-
 ## Overview
 
 This repository implements a Docker container service for the Service Quality Oracle. The oracle consumes data from BigQuery, processes it to determine indexer issuance rewards eligibility, based on a defined threshold algorithm, and posts issuance eligibility data on-chain.
+
+### Key Features
 
 The oracle runs with the following functionality:
 - **BigQuery Integration**: Fetches indexer performance data from Google BigQuery
 - **Eligibility Processing**: Applies threshold algorithm to determine issuance rewards eligibility based on service quality
 - **Blockchain Integration**: Posts issuance eligibility updates to the ServiceQualityOracle contract
+- **Slack Notifications**: Sends success/failure notifications for monitoring
 - **Docker Deployment**: Containerized and running with health checks
 - **Scheduled Execution**: Runs daily at 10:00 UTC
 - **RPC Failover**: Automatic failover between multiple RPC providers for reliability
 
+### Monitoring & Notifications
+
+The oracle includes built-in Slack notifications for operational monitoring:
+
+- **Success Notifications**: Sent when oracle runs complete successfully, including transaction details
+- **Failure Notifications**: Sent when errors occur, with detailed error information for debugging
+- **Simple & Reliable**: Direct notifications from the oracle process itself
+
+For production deployments, container orchestration (Kubernetes) should handle:
+- Container health monitoring and restarts
+- Resource management and scaling
+- Infrastructure-level alerts and monitoring
+
+### Testing Notifications
+
+Test notification functionality:
+```bash
+# Set webhook URL
+export SLACK_WEBHOOK_URL="your_webhook_url"
+
+# Run notification tests
+./scripts/test_slack_notifications.py
+```
+
+## Configuration
 
 ## Eligibility Criteria
 
 Please refer to the [ELIGIBILITY_CRITERIA.md](./ELIGIBILITY_CRITERIA.md) file to view the latest criteria for issuance. We are also posting upcoming criteria in that document.
-
 
 ## Data Flow
 
@@ -92,26 +118,21 @@ bandit -r src/
 
 [License information to be determined.]
 
-
 ## TODO List (only outstanding TODOs)
 
-### 1. Monitoring features
-- [ ] Slack monitoring integration
-  - [ ] Add notification logic for failed runs so we are aware in a slack channel
-  - [ ] Initially we can notify for successful runs too
-
-### 2. Production Readiness
+### 1. Production Readiness
 - [ ] Check error recovery mechanisms to see if they could be improved (RPC failover, retry logic)
 - [ ] Verify health check endpoints or processes (Docker healthcheck)
 
-### 3. Testing
+### 2. Testing
 - [ ] Create unit tests for all components
 - [ ] Create integration tests for the entire pipeline
 - [ ] Security review of code and dependencies
 
-### 4. Documentation
+### 3. Documentation
 - [ ] Documentation of all major components
 - [ ] Document operational procedures
 
-## 5. Last check
+### 4. Optimization
+- [ ] Optimize dependencies and container setup
 - [ ] Ensure unused files, functions & dependencies are removed from codebase
