@@ -133,3 +133,62 @@ class DataProcessor:
         # Create the output directory if it doesn't exist
         self.output_dir.mkdir(exist_ok=True, parents=True)
         logger.debug(f"Ensured output directory exists: {self.output_dir}")
+
+
+    def validate_dataframe_structure(self, df: pd.DataFrame, required_columns: List[str]) -> bool:
+        """
+        Validate that a DataFrame has the required columns.
+        
+        Args:
+            df: DataFrame to validate
+            required_columns: List of required column names
+            
+        Returns:
+            bool: True if all required columns are present
+            
+        Raises:
+            ValueError: If required columns are missing
+        """
+        # Check if any required columns are missing
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        # If any required columns are missing, raise an error
+        if missing_columns:
+            raise ValueError(f"DataFrame missing required columns: {missing_columns}")
+        
+        # If all required columns are present, return True
+        return True
+
+
+    def get_directory_size_info(self) -> dict:
+        """
+        Get information about the output directory size and file counts.
+        
+        Returns:
+            dict: Information about directory size and contents
+        """
+        # If the directory doesn't exist, return a dictionary with 0 values
+        if not self.output_dir.exists():
+            return {"exists": False, "total_size_bytes": 0, "directory_count": 0, "file_count": 0}
+        
+        total_size = 0
+        file_count = 0
+        directory_count = 0
+        
+        # Get the total size of the directory and the number of files and directories
+        for item in self.output_dir.rglob("*"):
+            if item.is_file():
+                total_size += item.stat().st_size
+                file_count += 1
+            elif item.is_dir():
+                directory_count += 1
+        
+        # Return the information about the directory size and contents
+        return {
+            "exists": True,
+            "total_size_bytes": total_size,
+            "total_size_mb": round(total_size / (1024 * 1024), 2),
+            "directory_count": directory_count,
+            "file_count": file_count,
+            "path": str(self.output_dir),
+        }
