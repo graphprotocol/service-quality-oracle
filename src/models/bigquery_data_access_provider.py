@@ -10,12 +10,8 @@ from typing import cast
 
 from bigframes import pandas as bpd
 from pandera.typing import DataFrame
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
+
+from src.utils.retry_decorator import retry_with_backoff
 
 # Module-level logger
 logger = logging.getLogger(__name__)
@@ -30,16 +26,17 @@ class BigQueryProvider:
         bpd.options.bigquery.project = project
         bpd.options.display.progress_bar = None
 
-    @retry(
-        retry=retry_if_exception_type((ConnectionError, socket.timeout)),
-        stop=stop_after_attempt(10),
-        wait=wait_exponential(multiplier=1, max=60),
-        reraise=True,
+    @retry_with_backoff(
+        max_attempts=10,
+        min_wait=1,
+        max_wait=60,
+        exceptions=(ConnectionError, socket.timeout)
     )
     def _read_gbq_dataframe(self, query: str) -> DataFrame:
         """
         Execute a read query on Google BigQuery and return the results as a pandas DataFrame.
-        Retries up to stop_after_attempt times on connection errors with exponential backoff.
+        Retries up to max_attempts times on connection errors with exponential backoff.
+        
         Note:
             This method uses the bigframes.pandas.read_gbq function to execute the query. It relies on
             Application Default Credentials (ADC) for authentication, primarily using the
@@ -53,9 +50,10 @@ class BigQueryProvider:
                 logger.warning(f"GOOGLE_APPLICATION_CREDENTIALS path not found: {creds_path}")
                 logger.warning("Falling back to gcloud CLI user credentials.")
             else:
-                logger.info("Using enviroment variable $GOOGLE_APPLICATION_CREDENTIALS for authentication.")
+                logger.info("Using environment variable $GOOGLE_APPLICATION_CREDENTIALS for authentication.")
         else:
             logger.warning("GOOGLE_APPLICATION_CREDENTIALS not set, falling back to gcloud CLI user credentials")
+
         # Execute the query with retry logic
         return cast(DataFrame, bpd.read_gbq(query).to_pandas())
 
@@ -70,9 +68,11 @@ class BigQueryProvider:
             - Blocks behind <50,000,
             - Subgraph has >=500 GRT signal at query time
         Note: The 500 GRT curation signal requirement is not currently implemented.
+
         Args:
             start_date (date): The start date for the data range.
             end_date (date): The end date for the data range.
+
         Returns:
             str: SQL query string for indexer eligibility data.
         """
@@ -166,12 +166,15 @@ class BigQueryProvider:
         """
         Fetch data from Google BigQuery, used to determine indexer issuance eligibility, and compute
         each indexer's issuance eligibility status.
+        
         Depends on:
             - _get_indexer_eligibility_query()
             - _read_gbq_dataframe()
+            
         Args:
             start_date (date): The start date for the data to fetch from BigQuery.
             end_date (date): The end date for the data to fetch from BigQuery.
+            
         Returns:
             DataFrame: DataFrame containing a range of metrics for each indexer.
                 The DataFrame contains the following columns:
