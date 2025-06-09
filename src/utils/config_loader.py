@@ -204,18 +204,23 @@ class ConfigLoader:
             "bigquery_location": config.get("bigquery", {}).get("BIGQUERY_LOCATION_ID", "US"),
             "bigquery_project_id": config.get("bigquery", {}).get("BIGQUERY_PROJECT_ID", "graph-mainnet"),
             "bigquery_dataset_id": config.get("bigquery", {}).get("BIGQUERY_DATASET_ID", "internal_metrics"),
+            
             # Blockchain settings
             "contract_address": config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),
             "contract_function": config.get("blockchain", {}).get("BLOCKCHAIN_FUNCTION_NAME"),
             "chain_id": config.get("blockchain", {}).get("BLOCKCHAIN_CHAIN_ID"),
             "rpc_providers": self._parse_rpc_urls(config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS", [])),
+            
             # Scheduling
             "scheduled_run_time": config.get("scheduling", {}).get("SCHEDULED_RUN_TIME"),
+            
             # Subgraph URLs
             "subgraph_url": config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
+            
             # Processing settings
             "batch_size": config.get("processing", {}).get("BATCH_SIZE", 125),
             "max_age_before_deletion": config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION", 120),
+            
             # Secrets
             "google_application_credentials": config.get("secrets", {}).get("GOOGLE_APPLICATION_CREDENTIALS"),
             "private_key": config.get("secrets", {}).get("BLOCKCHAIN_PRIVATE_KEY"),
