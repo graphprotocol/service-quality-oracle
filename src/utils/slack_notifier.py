@@ -52,14 +52,14 @@ class SlackNotifier:
                     self.webhook_url,
                     json=payload,
                     timeout=self.timeout,
-                    headers={"Content-Type": "application/json"}
+                    headers={"Content-Type": "application/json"},
                 )
-                
+
                 # If the message is sent successfully, return True
                 if response.status_code == 200:
                     logger.info("Slack notification sent successfully")
                     return True
-                
+
                 # log message failure
                 else:
                     logger.warning(f"Slack notification failed: {response.status_code}")
@@ -75,13 +75,12 @@ class SlackNotifier:
                 # If the attempt is not the last, wait for the exponential backoff and retry
                 else:
                     # Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 64s, 128s
-                    wait_time = 2 ** attempt
+                    wait_time = 2**attempt
                     logger.info(f"Retrying in {wait_time} seconds...")
                     time.sleep(wait_time)
 
         # If the message is not sent successfully, return False
         return False
-
 
     def _create_payload(self, text: str, fields: List[Dict], color: str = "good") -> Dict:
         """Create a Slack message payload."""
@@ -96,7 +95,6 @@ class SlackNotifier:
                 }
             ],
         }
-
 
     def send_success_notification(
         self,
@@ -147,7 +145,6 @@ class SlackNotifier:
 
         # Send message payload to Slack
         return self._send_message(payload)
-
 
     def send_failure_notification(
         self,
@@ -201,7 +198,6 @@ class SlackNotifier:
 
         # Send message payload to Slack
         return self._send_message(payload)
-
 
     def send_info_notification(self, message: str, title: str = "Info") -> bool:
         """
