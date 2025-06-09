@@ -71,3 +71,65 @@ class DataProcessor:
         # Return lists of eligible and ineligible indexers
         return eligible_df["indexer"].tolist(), ineligible_df["indexer"].tolist()
 
+
+    def clean_old_date_directories(self, max_age_before_deletion: int) -> None:
+        """
+        Remove old date directories to prevent unlimited growth.
+        
+        Args:
+            max_age_before_deletion: Maximum age in days before deleting data output
+        """
+        today = date.today()
+
+        # Check if the output directory exists
+        if not self.output_dir.exists():
+            logger.warning(f"Output directory does not exist: {self.output_dir}")
+            return
+
+        directories_removed = 0
+
+        # Only process directories with date format YYYY-MM-DD
+        for item in self.output_dir.iterdir():
+            if not item.is_dir():
+                continue
+
+            try:
+                # Try to parse the directory name as a date
+                dir_date = datetime.strptime(item.name, "%Y-%m-%d").date()
+                age_days = (today - dir_date).days
+                
+                # Remove if older than max_age_before_deletion
+                if age_days > max_age_before_deletion:
+                    logger.info(f"Removing old data directory: {item} ({age_days} days old)")
+                    shutil.rmtree(item)
+                    directories_removed += 1
+
+            except ValueError:
+                # Skip directories that don't match date format
+                logger.debug(f"Skipping non-date directory: {item.name}")
+                continue
+
+        if directories_removed > 0:
+            logger.info(f"Removed {directories_removed} old data directories")
+        else:
+            logger.info("No old data directories found to remove")
+
+
+    def get_date_output_directory(self, current_date: date) -> Path:
+        """
+        Get the output directory path for a specific date.
+        
+        Args:
+            current_date: Date for which to get the output directory
+            
+        Returns:
+            Path: Path to the date-specific output directory
+        """
+        return self.output_dir / current_date.strftime("%Y-%m-%d")
+
+
+    def ensure_output_directory_exists(self) -> None:
+        """Ensure the main output directory exists."""
+        # Create the output directory if it doesn't exist
+        self.output_dir.mkdir(exist_ok=True, parents=True)
+        logger.debug(f"Ensured output directory exists: {self.output_dir}")
