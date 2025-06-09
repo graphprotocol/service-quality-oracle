@@ -323,19 +323,22 @@ class CredentialManager:
         Returns:
             bool: True if credentials are valid and working
         """
+        # Try to validate the credentials
         try:
             import google.auth
-            
-            # Try to get default credentials
             credentials, project = google.auth.default()
             
+            # If the credentials are valid, log the success and return True
             if credentials:
                 logger.info(f"Google credentials validated successfully for project: {project}")
                 return True
+        
+            # If the credentials are not valid, log the error and return False
             else:
                 logger.error("No valid Google credentials found")
                 return False
-                
+        
+        # If the credentials could not be validated log the error
         except Exception as e:
             logger.error(f"Google credentials validation failed: {e}")
             return False
