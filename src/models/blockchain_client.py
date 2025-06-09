@@ -578,7 +578,7 @@ class BlockchainClient:
         chain_id: int,
         contract_function: str,
         replace: bool = False,
-        batch_size: int = 250,
+        batch_size: int = 125,
         data_bytes: bytes = b"",
     ) -> List[str]:
         """
