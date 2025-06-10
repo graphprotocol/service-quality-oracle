@@ -20,7 +20,7 @@ sys.path.insert(0, project_root)
 # Import data access utilities with absolute import
 from src.models.blockchain_client import BlockchainClient
 from src.models.data_processor import DataProcessor
-from src.utils.config_loader import load_config
+from src.utils.configuration import load_config
 from src.utils.slack_notifier import create_slack_notifier
 
 # Set up basic logging

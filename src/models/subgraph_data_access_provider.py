@@ -30,8 +30,7 @@ class SubgraphProvider:
         Initialize the subgraph provider.
         Automatically loads configuration from config loader.
         """
-        # Import here to avoid circular imports
-        from src.utils.config_loader import load_config
+        from src.utils.configuration import load_config
 
         # Load configuration
         config = load_config()

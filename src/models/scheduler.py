@@ -9,8 +9,7 @@ import schedule
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 import src.models.service_quality_oracle as oracle
-from src.utils.config_loader import load_config
-from src.utils.config_manager import credential_manager
+from src.utils.configuration import credential_manager, load_config, validate_all_required_env_vars
 from src.utils.slack_notifier import create_slack_notifier
 
 # Configure logging
@@ -143,7 +142,6 @@ class Scheduler:
         """Initialize the scheduler and validate configuration"""
         logger.info("Initializing scheduler...")
         try:
-            from src.utils.config_loader import validate_all_required_env_vars
             validate_all_required_env_vars()
 
             credential_manager.setup_google_credentials()
