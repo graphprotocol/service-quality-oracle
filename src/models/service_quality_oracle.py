@@ -18,10 +18,8 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, project_root)
 
 # Import data access utilities with absolute import
-from src.models.issuance_data_access_helper import (
-    batch_allow_indexers_issuance_eligibility_smart_contract,
-    bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eligible_indexers,
-)
+from src.models.blockchain_client import BlockchainClient
+from src.models.data_processor import DataProcessor
 from src.utils.config_loader import load_config
 from src.utils.config_manager import credential_manager
 from src.utils.slack_notifier import create_slack_notifier
@@ -65,24 +63,24 @@ def main():
 
         # Fetch + save indexer eligibility data and return eligible list
         stage = "Data Processing"
-        eligible_indexers = bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eligible_indexers(
+        data_processor = DataProcessor(config)
+        eligible_indexers = data_processor.process_and_get_eligible_indexers(
             start_date=date.today() - timedelta(days=28),
             end_date=date.today(),
             current_date=date.today(),
-            max_age_before_deletion=config.get("MAX_AGE_BEFORE_DELETION"),
         )
         logger.info(f"Found {len(eligible_indexers)} eligible indexers.")
 
         # Send eligible indexers to the blockchain contract
         stage = "Blockchain Submission"
-        transaction_links = batch_allow_indexers_issuance_eligibility_smart_contract(
-            eligible_indexers,
+        blockchain_client = BlockchainClient()
+        transaction_links = blockchain_client.batch_allow_indexers_issuance_eligibility(
+            indexer_addresses=eligible_indexers,
             private_key=config["private_key"],
             chain_id=config["chain_id"],
             contract_function=config["contract_function"],
             batch_size=config.get("BATCH_SIZE"),
             replace=True,
-            data_bytes=b"",
         )
 
         # Calculate execution time and send success notification
