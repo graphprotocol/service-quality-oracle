@@ -264,7 +264,6 @@ class CredentialManager:
                 creds_data.clear()
 
 
-    @retry_with_backoff(max_attempts=3, exceptions=(ValueError,))
     def setup_google_credentials(self) -> None:
         """
         Set up Google credentials directly in memory from environment variable.

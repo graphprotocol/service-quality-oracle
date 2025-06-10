@@ -585,8 +585,8 @@ class BlockchainClient:
         private_key: str,
         chain_id: int,
         contract_function: str,
+        batch_size: int,
         replace: bool = False,
-        batch_size: int = 125,
         data_bytes: bytes = b"",
     ) -> List[str]:
         """
@@ -597,8 +597,8 @@ class BlockchainClient:
             private_key: Private key for transaction signing
             chain_id: Chain ID of the target blockchain
             contract_function: Contract function name to call
-            replace: Optional flag to replace pending transactions
             batch_size: Optional batch size for processing large lists
+            replace: Optional flag to replace pending transactions
             data_bytes: Optional bytes data to pass to contract function
 
         Returns:

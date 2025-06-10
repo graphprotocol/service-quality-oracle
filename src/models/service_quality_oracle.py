@@ -42,6 +42,7 @@ def main():
     """
     start_time = time.time()
     slack_notifier = None
+    stage = "Initialization"
 
     try:
         # Load configuration to get Slack webhook and other settings
@@ -52,91 +53,65 @@ def main():
         else:
             logger.info("Slack notifications disabled (no webhook URL configured)")
 
-    except Exception as e:
-        logger.error(f"Failed to load configuration: {str(e)}")
-        sys.exit(1)
-
-    try:
         # Attempt to load google bigquery data access credentials
+        stage = "Authentication"
         try:
             # fmt: off
             import google.auth
             _ = google.auth.default()
             # fmt: on
-
-        # If credentials could not be loaded, set them up in memory via helper function using environment variables
         except Exception:
             credential_manager.setup_google_credentials()
 
-        try:
-            # Fetch + save indexer eligibility data and return eligible list as 'eligible_indexers' array
-            eligible_indexers = (
-                bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eligible_indexers(
-                    start_date=date.today() - timedelta(days=28),
-                    end_date=date.today(),
-                    current_date=date.today(),
-                    max_age_before_deletion=config.get("MAX_AGE_BEFORE_DELETION"),
-                )
+        # Fetch + save indexer eligibility data and return eligible list
+        stage = "Data Processing"
+        eligible_indexers = bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eligible_indexers(
+            start_date=date.today() - timedelta(days=28),
+            end_date=date.today(),
+            current_date=date.today(),
+            max_age_before_deletion=config.get("MAX_AGE_BEFORE_DELETION"),
+        )
+        logger.info(f"Found {len(eligible_indexers)} eligible indexers.")
+
+        # Send eligible indexers to the blockchain contract
+        stage = "Blockchain Submission"
+        transaction_links = batch_allow_indexers_issuance_eligibility_smart_contract(
+            eligible_indexers,
+            private_key=config["private_key"],
+            chain_id=config["chain_id"],
+            contract_function=config["contract_function"],
+            batch_size=config.get("BATCH_SIZE"),
+            replace=True,
+            data_bytes=b"",
+        )
+
+        # Calculate execution time and send success notification
+        execution_time = time.time() - start_time
+        logger.info(f"Oracle run completed successfully in {execution_time:.2f} seconds")
+
+        if slack_notifier:
+            batch_count = len(transaction_links) if transaction_links else 0
+            total_processed = len(eligible_indexers)
+            slack_notifier.send_success_notification(
+                eligible_indexers=eligible_indexers,
+                total_processed=total_processed,
+                execution_time=execution_time,
+                transaction_links=transaction_links,
+                batch_count=batch_count,
             )
-
-            logger.info(f"Found {len(eligible_indexers)} eligible indexers.")
-
-            # Send eligible indexers to the blockchain contract
-            try:
-                transaction_links = batch_allow_indexers_issuance_eligibility_smart_contract(
-                    eligible_indexers, replace=True, batch_size=config.get("BATCH_SIZE"), data_bytes=b""
-                )
-
-                # Calculate execution time and send success notification
-                execution_time = time.time() - start_time
-                logger.info(f"Oracle run completed successfully in {execution_time:.2f} seconds")
-
-                if slack_notifier:
-                    # Calculate batch information for notification
-                    batch_count = len(transaction_links) if transaction_links else 0
-                    total_processed = len(eligible_indexers)
-
-                    slack_notifier.send_success_notification(
-                        eligible_indexers=eligible_indexers,
-                        total_processed=total_processed,
-                        execution_time=execution_time,
-                        transaction_links=transaction_links,
-                        batch_count=batch_count,
-                    )
-
-            except Exception as e:
-                execution_time = time.time() - start_time
-                error_msg = f"Failed to allow indexers to claim issuance because: {str(e)}"
-                logger.error(error_msg)
-
-                if slack_notifier:
-                    slack_notifier.send_failure_notification(
-                        error_message=str(e), stage="Blockchain Submission", execution_time=execution_time
-                    )
-
-                sys.exit(1)
-
-        except Exception as e:
-            execution_time = time.time() - start_time
-            error_msg = f"Failed to process indexer issuance eligibility data because: {str(e)}"
-            logger.error(error_msg)
-
-            if slack_notifier:
-                slack_notifier.send_failure_notification(
-                    error_message=str(e), stage="Data Processing", execution_time=execution_time
-                )
-
-            sys.exit(1)
 
     except Exception as e:
         execution_time = time.time() - start_time
-        error_msg = f"Oracle initialization or authentication failed: {str(e)}"
-        logger.error(error_msg)
+        error_msg = f"Oracle failed at stage '{stage}': {str(e)}"
+        logger.error(error_msg, exc_info=True)
 
         if slack_notifier:
-            slack_notifier.send_failure_notification(
-                error_message=str(e), stage="Initialization", execution_time=execution_time
-            )
+            try:
+                slack_notifier.send_failure_notification(
+                    error_message=str(e), stage=stage, execution_time=execution_time
+                )
+            except Exception as slack_e:
+                logger.error(f"Failed to send Slack failure notification: {slack_e}", exc_info=True)
 
         sys.exit(1)
 

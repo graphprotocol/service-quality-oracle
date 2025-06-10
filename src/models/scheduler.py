@@ -78,61 +78,22 @@ def run_oracle(force_date=None):
     Args:
         force_date: If provided, override the date for this run
     """
-    global slack_notifier
     today = force_date or datetime.now().date()
     start_time = datetime.now()
     logger.info(f"Starting Service Quality Oracle run at {start_time} for date {today}")
 
-    # Ensure we have valid google credentials before proceeding
-    credential_manager.setup_google_credentials()
+    # The oracle.main() function handles its own exceptions, notifications, and credential setup.
+    # The scheduler's role is simply to trigger it and handle the retry logic.
+    oracle.main()
 
-    # Attempt to run the oracle
-    try:
-        # Load latest configuration using config loader
-        load_config()
-
-        # Run the oracle
-        oracle.main()
-
-        # Record successful run and overwrite the last run date
-        save_last_run_date(today)
-        end_time = datetime.now()
-        duration_in_seconds = (end_time - start_time).total_seconds()
-        success_message = f"Run completed successfully for {today}. Duration: {duration_in_seconds:.2f}s"
-        logger.info(f"Service Quality Oracle {success_message}")
-
-        # Touch healthcheck file to indicate successful runs
-        update_healthcheck(success_message)
-
-        # Send success notification from scheduler
-        if slack_notifier:
-            slack_notifier.send_success_notification(
-                message=f"Run completed successfully for {today}. Duration: {duration_in_seconds:.2f}s",
-                title="Scheduled Run Success",
-            )
-
-        # Return True to indicate success
-        return True
-
-    # If there is an error when trying to run the oracle, log the error and raise an exception
-    except Exception as e:
-        error_message = f"Run failed due to: {str(e)}"
-        logger.error(error_message, exc_info=True)
-
-        # Update healthcheck file to indicate failure
-        update_healthcheck(f"ERROR: {error_message}")
-
-        # Send failure notification to slack
-        if slack_notifier:
-            duration = (datetime.now() - start_time).total_seconds()
-            slack_notifier.send_failure_notification(
-                error_message=str(e),
-                stage="Scheduled Run" if force_date is None else f"Missed Run ({force_date})",
-                execution_time=duration,
-            )
-
-        # Raise an exception to indicate failure
-        raise
+    # If oracle.main() completes without sys.exit, it was successful.
+    # Record successful run and update healthcheck.
+    save_last_run_date(today)
+    end_time = datetime.now()
+    duration_in_seconds = (end_time - start_time).total_seconds()
+    success_message = f"Scheduler successfully triggered oracle run for {today}. Duration: {duration_in_seconds:.2f}s"
+    logger.info(success_message)
+    update_healthcheck(success_message)
 
 
 def check_missed_runs():
@@ -168,6 +129,13 @@ def check_missed_runs():
             return True
         except Exception as e:
             logger.error(f"Failed to execute missed run for {yesterday}: {e}")
+            # The oracle.main() has already sent a detailed failure notification.
+            # We can send an additional, scheduler-specific notification if desired.
+            if slack_notifier:
+                slack_notifier.send_failure_notification(
+                    error_message=f"The missed run for {yesterday} failed. See previous error for details.",
+                    stage="Scheduler Missed Run Execution"
+                )
             return False
     return False
 

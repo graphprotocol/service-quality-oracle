@@ -136,11 +136,7 @@ class SlackNotifier:
         payload = self._create_payload("Service Quality Oracle - Success", fields, "good")
 
         # Send message payload to Slack
-        try:
-            return self._send_message(payload)
-        except Exception as e:
-            logger.error(f"Failed to send success notification: {e}")
-            return False
+        return self._send_message(payload)
 
 
     def send_failure_notification(
@@ -194,11 +190,7 @@ class SlackNotifier:
         payload = self._create_payload("Service Quality Oracle - FAILURE", fields, "danger")
 
         # Send message payload to Slack
-        try:
-            return self._send_message(payload)
-        except Exception as e:
-            logger.error(f"Failed to send failure notification: {e}")
-            return False
+        return self._send_message(payload)
 
 
     def send_info_notification(self, message: str, title: str = "Info") -> bool:
@@ -224,11 +216,7 @@ class SlackNotifier:
         payload = self._create_payload(f"Service Quality Oracle - {title}", fields)
 
         # Send message payload to Slack
-        try:
-            return self._send_message(payload)
-        except Exception as e:
-            logger.error(f"Failed to send info notification: {e}")
-            return False
+        return self._send_message(payload)
 
 
 def create_slack_notifier(webhook_url: Optional[str]) -> Optional[SlackNotifier]:

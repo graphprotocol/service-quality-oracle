@@ -87,5 +87,5 @@ def bigquery_fetch_and_save_indexer_issuance_eligibility_data_finally_return_eli
         return eligible_indexers
 
     except Exception as e:
-        logger.error(f"Transaction failed on all RPC providers: {str(e)}")
+        logger.error(f"Failed to fetch and process BigQuery data: {str(e)}")
         raise
