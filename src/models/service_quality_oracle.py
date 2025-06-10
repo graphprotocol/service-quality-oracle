@@ -12,15 +12,17 @@ import os
 import sys
 import time
 from datetime import date, timedelta
+from pathlib import Path
 
 # Add project root to path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-sys.path.insert(0, project_root)
+project_root_path = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(project_root_path))
 
 # Import data access utilities with absolute import
+from src.models.bigquery_data_access_provider import BigQueryProvider
 from src.models.blockchain_client import BlockchainClient
 from src.models.data_processor import DataProcessor
-from src.utils.configuration import load_config
+from src.utils.configuration import credential_manager, load_config
 from src.utils.slack_notifier import create_slack_notifier
 
 # Set up basic logging
@@ -45,7 +47,8 @@ def main(run_date_override: date = None):
     stage = "Initialization"
 
     try:
-        # Load configuration to get Slack webhook and other settings
+        # Configuration and credentials
+        credential_manager.setup_google_credentials()
         config = load_config()
         slack_notifier = create_slack_notifier(config.get("SLACK_WEBHOOK_URL"))
         if slack_notifier:
@@ -55,24 +58,36 @@ def main(run_date_override: date = None):
 
         # Define the date for the current run
         current_run_date = run_date_override or date.today()
+        start_date = current_run_date - timedelta(days=config["BIGQUERY_ANALYSIS_PERIOD_DAYS"])
+        end_date = current_run_date
 
-        # Fetch + save indexer eligibility data and return eligible list
-        stage = "Data Processing"
-        data_processor = DataProcessor(config)
-        eligible_indexers = data_processor.process_and_get_eligible_indexers(
-            start_date=current_run_date - timedelta(days=28),
-            end_date=current_run_date,
-            current_date=current_run_date,
+        # --- Data Fetching Stage ---
+        stage = "Data Fetching from BigQuery"
+        logger.info(f"Fetching data from {start_date} to {end_date}")
+        bigquery_provider = BigQueryProvider(project=config["BIGQUERY_PROJECT"], location=config["BIGQUERY_LOCATION"])
+        eligibility_data = bigquery_provider.fetch_indexer_issuance_eligibility_data(start_date, end_date)
+        logger.info(f"Successfully fetched data for {len(eligibility_data)} indexers from BigQuery.")
+
+        # --- Data Processing Stage ---
+        stage = "Data Processing and Artifact Generation"
+        data_processor = DataProcessor(project_root=project_root_path)
+        output_date_dir = data_processor.get_date_output_directory(current_run_date)
+        eligible_indexers, _ = data_processor.export_bigquery_data_as_csvs_and_return_indexer_lists(
+            input_data_from_bigquery=eligibility_data,
+            output_date_dir=output_date_dir,
         )
         logger.info(f"Found {len(eligible_indexers)} eligible indexers.")
-        
-        data_processor.clean_old_date_directories(config["MAX_AGE_BEFORE_DELETION"])
 
+        data_processor.clean_old_date_directories(config["MAX_AGE_BEFORE_DELETION"])
 
         # --- Blockchain Submission Stage ---
         stage = "Blockchain Submission"
         logger.info("Instantiating BlockchainClient...")
-        blockchain_client = BlockchainClient()
+        blockchain_client = BlockchainClient(
+            rpc_providers=config["RPC_PROVIDERS"],
+            contract_address=config["CONTRACT_ADDRESS"],
+            project_root=project_root_path,
+        )
         transaction_links = blockchain_client.batch_allow_indexers_issuance_eligibility(
             indexer_addresses=eligible_indexers,
             private_key=config["PRIVATE_KEY"],
