@@ -32,15 +32,31 @@ class Scheduler:
         self.config = self.initialize()
 
     def get_last_run_date(self):
-        """Get the date of the last successful run from a persistent file"""
+        """
+        Get the date of the last successful run from a persistent file.
+        If the last run is older than 7 days, cap it at 7 days ago to limit BigQuery costs.
+        """
+        last_run_date = None
         if os.path.exists(LAST_RUN_FILE):
             try:
                 with open(LAST_RUN_FILE) as f:
                     last_run_str = f.read().strip()
-                    return datetime.strptime(last_run_str, "%Y-%m-%d").date()
+                    last_run_date = datetime.strptime(last_run_str, "%Y-%m-%d").date()
             except Exception as e:
-                logger.error(f"Error reading last run date: {e}")
-        return None
+                logger.error(f"Error reading or parsing last run date file: {e}")
+                return None
+
+        today = datetime.now().date()
+        seven_days_ago = today - timedelta(days=7)
+
+        if last_run_date and last_run_date < seven_days_ago:
+            logger.warning(
+                f"Last successful run was on {last_run_date}, which is more than 7 days ago. "
+                f"Capping backfill to 7 days to conserve BigQuery credits."
+            )
+            return seven_days_ago
+
+        return last_run_date
 
     def save_last_run_date(self, run_date):
         """Save the date of the last successful run to a file that we continuously overwrite each time"""
