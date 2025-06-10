@@ -21,7 +21,6 @@ sys.path.insert(0, project_root)
 from src.models.blockchain_client import BlockchainClient
 from src.models.data_processor import DataProcessor
 from src.utils.config_loader import load_config
-from src.utils.config_manager import config_manager, credential_manager
 from src.utils.slack_notifier import create_slack_notifier
 
 # Set up basic logging
@@ -53,16 +52,6 @@ def main(run_date_override: date = None):
             logger.info("Slack notifications enabled")
         else:
             logger.info("Slack notifications disabled (no webhook URL configured)")
-
-        # Attempt to load google bigquery data access credentials
-        stage = "Authentication"
-        try:
-            # fmt: off
-            import google.auth
-            _ = google.auth.default()
-            # fmt: on
-        except Exception:
-            credential_manager.setup_google_credentials()
 
         # Define the date for the current run
         current_run_date = run_date_override or date.today()
