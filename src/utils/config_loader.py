@@ -255,30 +255,30 @@ class ConfigLoader:
 def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
     """Helper function to validate the loaded configuration."""
     # Validate and convert chain_id to integer
-    if config.get("chain_id"):
+    if config.get("CHAIN_ID"):
         try:
-            config["chain_id"] = int(config["chain_id"])
+            config["CHAIN_ID"] = int(config["CHAIN_ID"])
         except (ValueError, TypeError) as e:
             raise ConfigurationError(
-                f"Invalid BLOCKCHAIN_CHAIN_ID: {config['chain_id']} - must be an integer."
+                f"Invalid BLOCKCHAIN_CHAIN_ID: {config['CHAIN_ID']} - must be an integer."
             ) from e
 
     # Validate scheduled run time format (HH:MM)
-    if config.get("scheduled_run_time"):
+    if config.get("SCHEDULED_RUN_TIME"):
         try:
-            datetime.strptime(config["scheduled_run_time"], "%H:%M")
+            datetime.strptime(config["SCHEDULED_RUN_TIME"], "%H:%M")
         except (ValueError, TypeError) as e:
             raise ConfigurationError(
-                f"Invalid SCHEDULED_RUN_TIME format: {config['scheduled_run_time']} - must be in HH:MM format"
+                f"Invalid SCHEDULED_RUN_TIME format: {config['SCHEDULED_RUN_TIME']} - must be in HH:MM format"
             ) from e
 
     # Validate required fields
     required_fields = [
-        "private_key",
-        "contract_address",
-        "contract_function",
-        "chain_id",
-        "scheduled_run_time",
+        "PRIVATE_KEY",
+        "CONTRACT_ADDRESS",
+        "CONTRACT_FUNCTION",
+        "CHAIN_ID",
+        "SCHEDULED_RUN_TIME",
     ]
     missing_fields = [field for field in required_fields if not config.get(field)]
     if missing_fields:
