@@ -225,12 +225,8 @@ if __name__ == "__main__":
     try:
         while True:
             schedule.run_pending()
-            # Update healthcheck file periodically (every 30 seconds)
-            if datetime.now().second % 30 == 0:
-                update_healthcheck("Scheduler heartbeat")
-
-            # Sleep
-            time.sleep(15)
+            update_healthcheck("Scheduler heartbeat")
+            time.sleep(60)
 
     except KeyboardInterrupt:
         logger.info("Scheduler stopped by user")

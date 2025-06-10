@@ -1,4 +1,4 @@
-# Dockerfile for Service Quality Oracle
+# Dockerfile to create a clean, lightweight Docker Image for the Service Quality Oracle
 
 # Use Python 3.9 slim as the base image for a lightweight container
 FROM python:3.9-slim
@@ -10,7 +10,14 @@ LABEL description="Service Quality Oracle" \
 # Set working directory
 WORKDIR /app
 
-# Set environment variables
+
+"""
+Setup enviroment variables:
+  1. PYTHONDONTWRITEBYTECODE=1  - Prevent python from creating .pyc files
+  2. PYTHONUNBUFFERED=1         - Send logs direct to console without buffering
+  3. PYTHONPATH=/app            - Add app directory to python import path
+  4. TZ=UTC                     - Set timezone to UTC
+"""
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
@@ -40,18 +47,17 @@ COPY contracts/ ./contracts/
 COPY .gitignore ./
 COPY pyproject.toml ./
 
-# Copy the scheduler to the root directory
-COPY src/models/scheduler.py ./
-
 # Create healthcheck file
 RUN touch /app/healthcheck
 
 # Use Tini as entrypoint for proper signal handling
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# Add healthcheck to verify the service is running
-HEALTHCHECK --interval=5m --timeout=30s --start-period=1m --retries=3 \
-  CMD python -c "import os, time; assert os.path.exists('/app/healthcheck') and time.time() - os.path.getmtime('/app/healthcheck') < 3600, 'Healthcheck failed'" || exit 1
+# Add healthcheck to verify the service is running.
+# The scheduler updates the healthcheck file every minute.
+# We check every 2 minutes and assert the file was modified in the last 5 minutes (300s).
+HEALTHCHECK --interval=2m --timeout=30s --start-period=1m --retries=3 \
+  CMD python -c "import os, time; assert os.path.exists('/app/healthcheck') and time.time() - os.path.getmtime('/app/healthcheck') < 300, 'Healthcheck failed'" || exit 1
 
-# Run the scheduler
-CMD ["python", "scheduler.py"]
+# Run the scheduler as a module
+CMD ["python", "-m", "src.models.scheduler"]
