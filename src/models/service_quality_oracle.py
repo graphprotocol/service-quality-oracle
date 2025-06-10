@@ -21,7 +21,7 @@ sys.path.insert(0, project_root)
 from src.models.blockchain_client import BlockchainClient
 from src.models.data_processor import DataProcessor
 from src.utils.config_loader import load_config
-from src.utils.config_manager import credential_manager
+from src.utils.config_manager import config_manager, credential_manager
 from src.utils.slack_notifier import create_slack_notifier
 
 # Set up basic logging
@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main(run_date_override: date = None):
     """
     Main entry point for the Service Quality Oracle.
     This function:
@@ -37,6 +37,9 @@ def main():
     2. Fetches and processes indexer eligibility data
     3. Submits eligible indexers to the blockchain
     4. Sends Slack notifications about the run status
+
+    Args:
+        run_date_override: If provided, use this date for the run instead of today.
     """
     start_time = time.time()
     slack_notifier = None
@@ -61,25 +64,32 @@ def main():
         except Exception:
             credential_manager.setup_google_credentials()
 
+        # Define the date for the current run
+        current_run_date = run_date_override or date.today()
+
         # Fetch + save indexer eligibility data and return eligible list
         stage = "Data Processing"
         data_processor = DataProcessor(config)
         eligible_indexers = data_processor.process_and_get_eligible_indexers(
-            start_date=date.today() - timedelta(days=28),
-            end_date=date.today(),
-            current_date=date.today(),
+            start_date=current_run_date - timedelta(days=28),
+            end_date=current_run_date,
+            current_date=current_run_date,
         )
         logger.info(f"Found {len(eligible_indexers)} eligible indexers.")
+        
+        data_processor.clean_old_date_directories(config["MAX_AGE_BEFORE_DELETION"])
 
-        # Send eligible indexers to the blockchain contract
+
+        # --- Blockchain Submission Stage ---
         stage = "Blockchain Submission"
+        logger.info("Instantiating BlockchainClient...")
         blockchain_client = BlockchainClient()
         transaction_links = blockchain_client.batch_allow_indexers_issuance_eligibility(
             indexer_addresses=eligible_indexers,
-            private_key=config["private_key"],
-            chain_id=config["chain_id"],
-            contract_function=config["contract_function"],
-            batch_size=config.get("BATCH_SIZE"),
+            private_key=config["PRIVATE_KEY"],
+            chain_id=config["CHAIN_ID"],
+            contract_function=config["CONTRACT_FUNCTION"],
+            batch_size=config["BATCH_SIZE"],
             replace=True,
         )
 

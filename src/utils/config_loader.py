@@ -205,31 +205,31 @@ class ConfigLoader:
         # Convert nested structure to flat format
         flat_config = {
             # BigQuery settings
-            "bigquery_location": config.get("bigquery", {}).get("BIGQUERY_LOCATION_ID", "US"),
-            "bigquery_project_id": config.get("bigquery", {}).get("BIGQUERY_PROJECT_ID", "graph-mainnet"),
-            "bigquery_dataset_id": config.get("bigquery", {}).get("BIGQUERY_DATASET_ID", "internal_metrics"),
+            "BIGQUERY_LOCATION": config.get("bigquery", {}).get("BIGQUERY_LOCATION_ID", "US"),
+            "BIGQUERY_PROJECT_ID": config.get("bigquery", {}).get("BIGQUERY_PROJECT_ID", "graph-mainnet"),
+            "BIGQUERY_DATASET_ID": config.get("bigquery", {}).get("BIGQUERY_DATASET_ID", "internal_metrics"),
 
             # Blockchain settings
-            "contract_address": config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),
-            "contract_function": config.get("blockchain", {}).get("BLOCKCHAIN_FUNCTION_NAME"),
-            "chain_id": config.get("blockchain", {}).get("BLOCKCHAIN_CHAIN_ID"),
-            "rpc_providers": self._parse_rpc_urls(config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS", [])),
+            "CONTRACT_ADDRESS": config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),
+            "CONTRACT_FUNCTION": config.get("blockchain", {}).get("BLOCKCHAIN_FUNCTION_NAME"),
+            "CHAIN_ID": config.get("blockchain", {}).get("BLOCKCHAIN_CHAIN_ID"),
+            "RPC_PROVIDERS": self._parse_rpc_urls(config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS", [])),
 
             # Scheduling
-            "scheduled_run_time": config.get("scheduling", {}).get("SCHEDULED_RUN_TIME"),
+            "SCHEDULED_RUN_TIME": config.get("scheduling", {}).get("SCHEDULED_RUN_TIME"),
 
             # Subgraph URLs
-            "subgraph_url": config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
+            "SUBGRAPH_URL": config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
 
             # Processing settings
-            "batch_size": config.get("processing", {}).get("BATCH_SIZE", 125),
-            "max_age_before_deletion": config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION", 120),
+            "BATCH_SIZE": config.get("processing", {}).get("BATCH_SIZE", 125),
+            "MAX_AGE_BEFORE_DELETION": config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION", 120),
 
             # Secrets
-            "google_application_credentials": config.get("secrets", {}).get("GOOGLE_APPLICATION_CREDENTIALS"),
-            "private_key": config.get("secrets", {}).get("BLOCKCHAIN_PRIVATE_KEY"),
-            "studio_api_key": config.get("secrets", {}).get("STUDIO_API_KEY"),
-            "slack_webhook_url": config.get("secrets", {}).get("SLACK_WEBHOOK_URL"),
+            "GOOGLE_APPLICATION_CREDENTIALS": config.get("secrets", {}).get("GOOGLE_APPLICATION_CREDENTIALS"),
+            "PRIVATE_KEY": config.get("secrets", {}).get("BLOCKCHAIN_PRIVATE_KEY"),
+            "STUDIO_API_KEY": config.get("secrets", {}).get("STUDIO_API_KEY"),
+            "SLACK_WEBHOOK_URL": config.get("secrets", {}).get("SLACK_WEBHOOK_URL"),
         }
         # fmt: on
 
