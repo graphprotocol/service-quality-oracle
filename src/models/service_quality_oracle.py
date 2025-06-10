@@ -21,7 +21,7 @@ sys.path.insert(0, str(project_root_path))
 # Import data access utilities with absolute import
 from src.models.bigquery_data_access_provider import BigQueryProvider
 from src.models.blockchain_client import BlockchainClient
-from src.models.data_processor import DataProcessor
+from src.models.eligibility_pipeline import EligibilityPipeline
 from src.utils.configuration import credential_manager, load_config
 from src.utils.slack_notifier import create_slack_notifier
 
@@ -70,15 +70,14 @@ def main(run_date_override: date = None):
 
         # --- Data Processing Stage ---
         stage = "Data Processing and Artifact Generation"
-        data_processor = DataProcessor(project_root=project_root_path)
-        output_date_dir = data_processor.get_date_output_directory(current_run_date)
-        eligible_indexers, _ = data_processor.export_bigquery_data_as_csvs_and_return_indexer_lists(
+        pipeline = EligibilityPipeline(project_root=project_root_path)
+        eligible_indexers, _ = pipeline.process(
             input_data_from_bigquery=eligibility_data,
-            output_date_dir=output_date_dir,
+            current_date=current_run_date,
         )
         logger.info(f"Found {len(eligible_indexers)} eligible indexers.")
 
-        data_processor.clean_old_date_directories(config["MAX_AGE_BEFORE_DELETION"])
+        pipeline.clean_old_date_directories(config["MAX_AGE_BEFORE_DELETION"])
 
         # --- Blockchain Submission Stage ---
         stage = "Blockchain Submission"
