@@ -17,6 +17,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any, Optional
+from datetime import datetime
 
 # Handle Python version compatibility for TOML loading
 if sys.version_info >= (3, 11):
@@ -251,9 +252,48 @@ class ConfigLoader:
         return valid_providers
 
 
+def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Helper function to validate the loaded configuration."""
+    # Validate and convert chain_id to integer
+    if config.get("chain_id"):
+        try:
+            config["chain_id"] = int(config["chain_id"])
+        except (ValueError, TypeError) as e:
+            raise ConfigurationError(
+                f"Invalid BLOCKCHAIN_CHAIN_ID: {config['chain_id']} - must be an integer."
+            ) from e
+
+    # Validate scheduled run time format (HH:MM)
+    if config.get("scheduled_run_time"):
+        try:
+            datetime.strptime(config["scheduled_run_time"], "%H:%M")
+        except (ValueError, TypeError) as e:
+            raise ConfigurationError(
+                f"Invalid SCHEDULED_RUN_TIME format: {config['scheduled_run_time']} - must be in HH:MM format"
+            ) from e
+
+    # Validate required fields
+    required_fields = [
+        "private_key",
+        "contract_address",
+        "contract_function",
+        "chain_id",
+        "scheduled_run_time",
+    ]
+    missing_fields = [field for field in required_fields if not config.get(field)]
+    if missing_fields:
+        raise ConfigurationError(f"Missing required configuration fields: {', '.join(missing_fields)}")
+
+    # Validate RPC providers
+    if not config.get("rpc_providers") or not isinstance(config["rpc_providers"], list):
+        raise ConfigurationError("BLOCKCHAIN_RPC_URLS must be a list of valid RPC URLs")
+
+    return config
+
+
 def load_config() -> dict[str, Any]:
     """
-    Convenience function to load configuration.
+    Convenience function to load and validate configuration.
 
     Returns configuration in flat format compatible with existing codebase.
 
@@ -261,10 +301,11 @@ def load_config() -> dict[str, Any]:
         Dictionary containing configuration with secrets from environment variables
 
     Raises:
-        ConfigurationError: If configuration loading fails
+        ConfigurationError: If configuration loading or validation fails
     """
     loader = ConfigLoader()
-    return loader.get_flat_config()
+    flat_config = loader.get_flat_config()
+    return _validate_config(flat_config)
 
 
 def validate_all_required_env_vars() -> None:
