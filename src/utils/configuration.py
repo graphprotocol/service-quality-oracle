@@ -125,24 +125,24 @@ class ConfigLoader:
         # Convert nested structure to flat format
         return {
             # BigQuery settings
-            "BIGQUERY_LOCATION": substituted_config.get("bigquery", {}).get("BIGQUERY_LOCATION_ID", "US"),
-            "BIGQUERY_PROJECT_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_PROJECT_ID", "graph-mainnet"),
-            "BIGQUERY_DATASET_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_DATASET_ID", "internal_metrics"),
-            "BIGQUERY_TABLE_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_TABLE_ID", "metrics_indexer_attempts"),
+            "BIGQUERY_LOCATION": substituted_config.get("bigquery", {}).get("BIGQUERY_LOCATION_ID"),
+            "BIGQUERY_PROJECT_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_PROJECT_ID"),
+            "BIGQUERY_DATASET_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_DATASET_ID"),
+            "BIGQUERY_TABLE_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_TABLE_ID"),
             
             # Eligibility Criteria
-            "MIN_ONLINE_DAYS": int(substituted_config.get("eligibility_criteria", {}).get("MIN_ONLINE_DAYS", 5)),
-            "MIN_SUBGRAPHS": int(substituted_config.get("eligibility_criteria", {}).get("MIN_SUBGRAPHS", 10)),
-            "MAX_LATENCY_MS": int(substituted_config.get("eligibility_criteria", {}).get("MAX_LATENCY_MS", 5000)),
-            "MAX_BLOCKS_BEHIND": int(substituted_config.get("eligibility_criteria", {}).get("MAX_BLOCKS_BEHIND", 50000)),
+            "MIN_ONLINE_DAYS": int(substituted_config.get("eligibility_criteria", {}).get("MIN_ONLINE_DAYS")),
+            "MIN_SUBGRAPHS": int(substituted_config.get("eligibility_criteria", {}).get("MIN_SUBGRAPHS")),
+            "MAX_LATENCY_MS": int(substituted_config.get("eligibility_criteria", {}).get("MAX_LATENCY_MS")),
+            "MAX_BLOCKS_BEHIND": int(substituted_config.get("eligibility_criteria", {}).get("MAX_BLOCKS_BEHIND")),
             
             # Blockchain settings
             "CONTRACT_ADDRESS": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),
             "CONTRACT_FUNCTION": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_FUNCTION_NAME"),
             "CHAIN_ID": int(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CHAIN_ID")),
-            "RPC_PROVIDERS": self._parse_rpc_urls(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS", [])),
-            "BLOCK_EXPLORER_URL": substituted_config.get("blockchain", {}).get("BLOCK_EXPLORER_URL", "https://sepolia.arbiscan.io"),
-            "TX_TIMEOUT_SECONDS": int(substituted_config.get("blockchain", {}).get("TX_TIMEOUT_SECONDS", 30)),
+            "RPC_PROVIDERS": self._parse_rpc_urls(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS")),
+            "BLOCK_EXPLORER_URL": substituted_config.get("blockchain", {}).get("BLOCK_EXPLORER_URL"),
+            "TX_TIMEOUT_SECONDS": int(substituted_config.get("blockchain", {}).get("TX_TIMEOUT_SECONDS")),
             
             # Scheduling
             "SCHEDULED_RUN_TIME": substituted_config.get("scheduling", {}).get("SCHEDULED_RUN_TIME"),
@@ -151,9 +151,9 @@ class ConfigLoader:
             "SUBGRAPH_URL": substituted_config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
             
             # Processing settings
-            "BATCH_SIZE": int(substituted_config.get("processing", {}).get("BATCH_SIZE", 125)),
-            "MAX_AGE_BEFORE_DELETION": int(substituted_config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION", 120)),
-            "BIGQUERY_ANALYSIS_PERIOD_DAYS": int(substituted_config.get("processing", {}).get("BIGQUERY_ANALYSIS_PERIOD_DAYS", 28)),
+            "BATCH_SIZE": int(substituted_config.get("processing", {}).get("BATCH_SIZE")),
+            "MAX_AGE_BEFORE_DELETION": int(substituted_config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION")),
+            "BIGQUERY_ANALYSIS_PERIOD_DAYS": int(substituted_config.get("processing", {}).get("BIGQUERY_ANALYSIS_PERIOD_DAYS")),
             
             # Secrets
             "GOOGLE_APPLICATION_CREDENTIALS": substituted_config.get("secrets", {}).get("GOOGLE_APPLICATION_CREDENTIALS"),
@@ -164,15 +164,14 @@ class ConfigLoader:
         # fmt: on
 
 
-    def _parse_rpc_urls(self, rpc_urls: list) -> list[str]:
+    def _parse_rpc_urls(self, rpc_urls: Optional[list]) -> list[str]:
         """Parse RPC URLs from list format."""
         if not rpc_urls or not isinstance(rpc_urls, list) or not all(isinstance(url, str) for url in rpc_urls):
-            raise ConfigurationError("BLOCKCHAIN_RPC_URLS must be a list of valid string providers")
+            return []
 
         valid_providers = [url.strip() for url in rpc_urls if url.strip()]
         if not valid_providers:
-
-            raise ConfigurationError("No valid RPC providers found in BLOCKCHAIN_RPC_URLS")
+            return []
 
         return valid_providers
 
@@ -213,23 +212,28 @@ class ConfigLoader:
 
 
 def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
-    if config.get("CHAIN_ID"):
-        try:
-            config["CHAIN_ID"] = int(config["CHAIN_ID"])
-        except (ValueError, TypeError) as e:
-            raise ConfigurationError(f"Invalid CHAIN_ID: {config['CHAIN_ID']} - must be an integer.") from e
-    
-    if config.get("SCHEDULED_RUN_TIME"):
-        try:
-            datetime.strptime(config["SCHEDULED_RUN_TIME"], "%H:%M")
-        except (ValueError, TypeError) as e:
-            raise ConfigurationError(f"Invalid SCHEDULED_RUN_TIME: {config['SCHEDULED_RUN_TIME']} - must be HH:MM.") from e
-            
-    required = ["PRIVATE_KEY", "CONTRACT_ADDRESS", "CONTRACT_FUNCTION", "CHAIN_ID", "SCHEDULED_RUN_TIME"]
-    missing = [field for field in required if not config.get(field)]
+    # Define required fields. All other fields from `get_flat_config` are considered optional.
+    required = [
+        "BIGQUERY_LOCATION", "BIGQUERY_PROJECT_ID", "BIGQUERY_DATASET_ID", "BIGQUERY_TABLE_ID",
+        "MIN_ONLINE_DAYS", "MIN_SUBGRAPHS", "MAX_LATENCY_MS", "MAX_BLOCKS_BEHIND",
+        "CONTRACT_ADDRESS", "CONTRACT_FUNCTION", "CHAIN_ID", "RPC_PROVIDERS",
+        "BLOCK_EXPLORER_URL", "TX_TIMEOUT_SECONDS", "SCHEDULED_RUN_TIME",
+        "BATCH_SIZE", "MAX_AGE_BEFORE_DELETION", "BIGQUERY_ANALYSIS_PERIOD_DAYS",
+        "PRIVATE_KEY",
+    ]
+    missing = [field for field in required if config.get(field) is None or config.get(field) == []]
     if missing:
-        raise ConfigurationError(f"Missing required configuration fields: {', '.join(missing)}")
-        
+        raise ConfigurationError(
+            f"Missing required configuration fields in config.toml or environment variables: {', '.join(sorted(missing))}"
+        )
+
+    # Validate specific field formats
+    try:
+        # The int() casts in get_flat_config will handle type errors for numeric fields.
+        datetime.strptime(config["SCHEDULED_RUN_TIME"], "%H:%M")
+    except (ValueError, TypeError):
+        raise ConfigurationError(f"Invalid SCHEDULED_RUN_TIME: {config['SCHEDULED_RUN_TIME']} - must be in HH:MM format.")
+
     return config
 
 
