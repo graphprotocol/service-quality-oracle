@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 from src.utils.retry_decorator import retry_with_backoff
 

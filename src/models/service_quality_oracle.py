@@ -71,7 +71,7 @@ def main(run_date_override: date = None):
 
         bigquery_provider = BigQueryProvider(
             project=config["BIGQUERY_PROJECT_ID"],
-            location=config["BIGQUERY_LOCATION"],
+            location=config["BIGQUERY_LOCATION_ID"],
             table_name=table_name,
             min_online_days=config["MIN_ONLINE_DAYS"],
             min_subgraphs=config["MIN_SUBGRAPHS"],
@@ -96,8 +96,8 @@ def main(run_date_override: date = None):
         stage = "Blockchain Submission"
         logger.info("Instantiating BlockchainClient...")
         blockchain_client = BlockchainClient(
-            rpc_providers=config["RPC_PROVIDERS"],
-            contract_address=config["CONTRACT_ADDRESS"],
+            rpc_providers=config["BLOCKCHAIN_RPC_URLS"],
+            contract_address=config["BLOCKCHAIN_CONTRACT_ADDRESS"],
             project_root=project_root_path,
             block_explorer_url=config["BLOCK_EXPLORER_URL"],
             tx_timeout_seconds=config["TX_TIMEOUT_SECONDS"],
@@ -105,8 +105,8 @@ def main(run_date_override: date = None):
         transaction_links = blockchain_client.batch_allow_indexers_issuance_eligibility(
             indexer_addresses=eligible_indexers,
             private_key=config["PRIVATE_KEY"],
-            chain_id=config["CHAIN_ID"],
-            contract_function=config["CONTRACT_FUNCTION"],
+            chain_id=config["BLOCKCHAIN_CHAIN_ID"],
+            contract_function=config["BLOCKCHAIN_FUNCTION_NAME"],
             batch_size=config["BATCH_SIZE"],
             replace=True,
         )

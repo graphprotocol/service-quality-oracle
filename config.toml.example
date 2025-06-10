@@ -6,10 +6,10 @@
 # =============================================================================
 
 [bigquery]
-BIGQUERY_LOCATION_ID = ""
-BIGQUERY_PROJECT_ID = ""
-BIGQUERY_DATASET_ID = ""
-BIGQUERY_TABLE_ID = ""
+BIGQUERY_LOCATION_ID = "US"
+BIGQUERY_PROJECT_ID = "graph-mainnet"
+BIGQUERY_DATASET_ID = "internal_metrics"
+BIGQUERY_TABLE_ID = "metrics_indexer_attempts"
 
 [blockchain]
 BLOCKCHAIN_CONTRACT_ADDRESS = ""

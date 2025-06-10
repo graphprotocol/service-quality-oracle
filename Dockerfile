@@ -11,13 +11,11 @@ LABEL description="Service Quality Oracle" \
 WORKDIR /app
 
 
-"""
-Setup enviroment variables:
-  1. PYTHONDONTWRITEBYTECODE=1  - Prevent python from creating .pyc files
-  2. PYTHONUNBUFFERED=1         - Send logs direct to console without buffering
-  3. PYTHONPATH=/app            - Add app directory to python import path
-  4. TZ=UTC                     - Set timezone to UTC
-"""
+# Setup enviroment variables:
+#   1. PYTHONDONTWRITEBYTECODE=1  - Prevent python from creating .pyc files
+#   2. PYTHONUNBUFFERED=1         - Send logs direct to console without buffering
+#   3. PYTHONPATH=/app            - Add app directory to python import path
+#   4. TZ=UTC                     - Set timezone to UTC
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \

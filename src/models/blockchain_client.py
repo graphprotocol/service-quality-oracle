@@ -11,10 +11,12 @@ This module handles all blockchain interactions including:
 import json
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple, cast
 
 from web3 import Web3
 from web3.contract import Contract
+from web3.providers import HTTPProvider
+from web3.types import BlockData, ChecksumAddress, HexStr
 
 from src.utils.key_validator import KeyValidationError, validate_and_format_private_key
 from src.utils.retry_decorator import retry_with_backoff
@@ -136,7 +138,12 @@ class BlockchainClient:
 
 
     def _estimate_transaction_gas(
-        self, w3: Web3, contract_func: Any, indexer_addresses: List[str], data_bytes: bytes, sender_address: str
+        self,
+        w3: Web3,
+        contract_func: Any,
+        indexer_addresses: List[str],
+        data_bytes: bytes,
+        sender_address: ChecksumAddress,
     ) -> int:
         """
         Estimate gas for the transaction with 25% buffer.
@@ -164,7 +171,7 @@ class BlockchainClient:
             raise
 
 
-    def _determine_transaction_nonce(self, w3: Web3, sender_address: str, replace: bool) -> int:
+    def _determine_transaction_nonce(self, w3: Web3, sender_address: ChecksumAddress, replace: bool) -> int:
         """
         Determine the appropriate nonce for the transaction.
 
@@ -187,9 +194,12 @@ class BlockchainClient:
 
         # Try to find pending transactions
         try:
-            pending_txs = w3.eth.get_block("pending", full_transactions=True)
+            pending_txs_data = w3.eth.get_block("pending", full_transactions=True)
+            pending_txs = cast(BlockData, pending_txs_data)
             sender_pending_txs = [
-                tx for tx in pending_txs.transactions if hasattr(tx, "from") and tx["from"] == sender_address
+                tx
+                for tx in pending_txs["transactions"]
+                if isinstance(tx, dict) and tx.get("from") == sender_address
             ]
 
             # If we found pending transactions, use the nonce of the first pending transaction
@@ -225,8 +235,10 @@ class BlockchainClient:
         """Get base fee and max priority fee for transaction."""
         # Get current gas prices with detailed logging
         try:
-            latest_block = w3.eth.get_block("latest")
-            base_fee = latest_block["baseFeePerGas"]
+            latest_block_data = w3.eth.get_block("latest")
+            latest_block = cast(BlockData, latest_block_data)
+            base_fee_hex = latest_block["baseFeePerGas"]
+            base_fee = int(base_fee_hex)
             logger.info(f"Latest block base fee: {base_fee/1e9:.2f} gwei")
 
         # If the base fee cannot be retrieved, use a fallback value
@@ -250,7 +262,7 @@ class BlockchainClient:
 
     def _build_transaction_params(
         self,
-        sender_address: str,
+        sender_address: ChecksumAddress,
         nonce: int,
         chain_id: int,
         gas_limit: int,
@@ -379,9 +391,10 @@ class BlockchainClient:
         contract_function = params["contract_function"]
         indexer_addresses = params["indexer_addresses"]
         data_bytes = params["data_bytes"]
-        sender_address = params["sender_address"]
+        sender_address_str = params["sender_address"]
         chain_id = params["chain_id"]
         replace = params["replace"]
+        sender_address = Web3.to_checksum_address(sender_address_str)
 
         # Validate contract function exists
         if not hasattr(contract.functions, contract_function):
@@ -396,7 +409,8 @@ class BlockchainClient:
         logger.info(f"Data bytes length: {len(data_bytes)}")
         logger.info(f"Chain ID: {chain_id}")
         logger.info(f"Sender address: {sender_address}")
-        logger.info(f"Using RPC: {w3.provider.endpoint_uri}")
+        if isinstance(w3.provider, HTTPProvider):
+            logger.info(f"Using RPC: {w3.provider.endpoint_uri}")
 
         # Check account balance
         balance_wei = w3.eth.get_balance(sender_address)
@@ -434,7 +448,7 @@ class BlockchainClient:
 
         # Wait for receipt with the same connection
         try:
-            tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=self.tx_timeout_seconds)
+            tx_receipt = w3.eth.wait_for_transaction_receipt(HexStr(tx_hash), timeout=self.tx_timeout_seconds)
             if tx_receipt["status"] == 1:
                 logger.info(
                     f"Transaction confirmed in block {tx_receipt['blockNumber']}, "

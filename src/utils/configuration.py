@@ -122,45 +122,55 @@ class ConfigLoader:
         raw_config = self._get_raw_config()
         substituted_config = self._substitute_env_vars(raw_config)
 
+        # Helper to safely convert values to integers
+
+
+        def to_int(v):
+            return int(v) if v is not None and v != "" else None
+
         # fmt: off
         # Convert nested structure to flat format
         return {
             # BigQuery settings
-            "BIGQUERY_LOCATION": substituted_config.get("bigquery", {}).get("BIGQUERY_LOCATION_ID"),
+            "BIGQUERY_LOCATION_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_LOCATION_ID"),
             "BIGQUERY_PROJECT_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_PROJECT_ID"),
             "BIGQUERY_DATASET_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_DATASET_ID"),
             "BIGQUERY_TABLE_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_TABLE_ID"),
 
             # Eligibility Criteria
-            "MIN_ONLINE_DAYS": int(substituted_config.get("eligibility_criteria", {}).get("MIN_ONLINE_DAYS")),
-            "MIN_SUBGRAPHS": int(substituted_config.get("eligibility_criteria", {}).get("MIN_SUBGRAPHS")),
-            "MAX_LATENCY_MS": int(substituted_config.get("eligibility_criteria", {}).get("MAX_LATENCY_MS")),
-            "MAX_BLOCKS_BEHIND": int(substituted_config.get("eligibility_criteria", {}).get("MAX_BLOCKS_BEHIND")),
+            "MIN_ONLINE_DAYS": to_int(substituted_config.get("eligibility_criteria", {}).get("MIN_ONLINE_DAYS")),
+            "MIN_SUBGRAPHS": to_int(substituted_config.get("eligibility_criteria", {}).get("MIN_SUBGRAPHS")),
+            "MAX_LATENCY_MS": to_int(substituted_config.get("eligibility_criteria", {}).get("MAX_LATENCY_MS")),
+            "MAX_BLOCKS_BEHIND": to_int(substituted_config.get("eligibility_criteria", {}).get("MAX_BLOCKS_BEHIND")),
 
             # Blockchain settings
-            "CONTRACT_ADDRESS": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),
-            "CONTRACT_FUNCTION": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_FUNCTION_NAME"),
-            "CHAIN_ID": int(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CHAIN_ID")),
-            "RPC_PROVIDERS": self._parse_rpc_urls(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS")),
+            "BLOCKCHAIN_CONTRACT_ADDRESS": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),
+            "BLOCKCHAIN_FUNCTION_NAME": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_FUNCTION_NAME"),
+            "BLOCKCHAIN_CHAIN_ID": to_int(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CHAIN_ID")),
+            "BLOCKCHAIN_RPC_URLS": self._parse_rpc_urls(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS")),
             "BLOCK_EXPLORER_URL": substituted_config.get("blockchain", {}).get("BLOCK_EXPLORER_URL"),
-            "TX_TIMEOUT_SECONDS": int(substituted_config.get("blockchain", {}).get("TX_TIMEOUT_SECONDS")),
+            "TX_TIMEOUT_SECONDS": to_int(substituted_config.get("blockchain", {}).get("TX_TIMEOUT_SECONDS")),
 
             # Scheduling
             "SCHEDULED_RUN_TIME": substituted_config.get("scheduling", {}).get("SCHEDULED_RUN_TIME"),
 
             # Subgraph URLs
-            "SUBGRAPH_URL": substituted_config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
+            "SUBGRAPH_URL_PRE_PRODUCTION": substituted_config.get("subgraph", {}).get("SUBGRAPH_URL_PRE_PRODUCTION"),
+            "SUBGRAPH_URL_PRODUCTION": substituted_config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
 
             # Processing settings
-            "BATCH_SIZE": int(substituted_config.get("processing", {}).get("BATCH_SIZE")),
-            "MAX_AGE_BEFORE_DELETION": int(substituted_config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION")),
-            "BIGQUERY_ANALYSIS_PERIOD_DAYS": int(substituted_config.get("processing", {}).get("BIGQUERY_ANALYSIS_PERIOD_DAYS")),
+            "BATCH_SIZE": to_int(substituted_config.get("processing", {}).get("BATCH_SIZE")),
+            "MAX_AGE_BEFORE_DELETION": to_int(substituted_config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION")),
+            "BIGQUERY_ANALYSIS_PERIOD_DAYS": to_int(substituted_config.get("processing", {}).get("BIGQUERY_ANALYSIS_PERIOD_DAYS")),
 
             # Secrets
             "GOOGLE_APPLICATION_CREDENTIALS": substituted_config.get("secrets", {}).get("GOOGLE_APPLICATION_CREDENTIALS"),
             "PRIVATE_KEY": substituted_config.get("secrets", {}).get("BLOCKCHAIN_PRIVATE_KEY"),
             "STUDIO_API_KEY": substituted_config.get("secrets", {}).get("STUDIO_API_KEY"),
+            "STUDIO_DEPLOY_KEY": substituted_config.get("secrets", {}).get("STUDIO_DEPLOY_KEY"),
             "SLACK_WEBHOOK_URL": substituted_config.get("secrets", {}).get("SLACK_WEBHOOK_URL"),
+            "ETHERSCAN_API_KEY": substituted_config.get("secrets", {}).get("ETHERSCAN_API_KEY"),
+            "ARBITRUM_API_KEY": substituted_config.get("secrets", {}).get("ARBITRUM_API_KEY"),
         }
         # fmt: on
 
@@ -215,7 +225,7 @@ class ConfigLoader:
 def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
     # Define required fields. All other fields from `get_flat_config` are considered optional.
     required = [
-        "BIGQUERY_LOCATION",
+        "BIGQUERY_LOCATION_ID",
         "BIGQUERY_PROJECT_ID",
         "BIGQUERY_DATASET_ID",
         "BIGQUERY_TABLE_ID",
@@ -223,19 +233,26 @@ def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
         "MIN_SUBGRAPHS",
         "MAX_LATENCY_MS",
         "MAX_BLOCKS_BEHIND",
-        "CONTRACT_ADDRESS",
-        "CONTRACT_FUNCTION",
-        "CHAIN_ID",
-        "RPC_PROVIDERS",
+        "BLOCKCHAIN_CONTRACT_ADDRESS",
+        "BLOCKCHAIN_FUNCTION_NAME",
+        "BLOCKCHAIN_CHAIN_ID",
+        "BLOCKCHAIN_RPC_URLS",
         "BLOCK_EXPLORER_URL",
         "TX_TIMEOUT_SECONDS",
         "SCHEDULED_RUN_TIME",
+        "SUBGRAPH_URL_PRE_PRODUCTION",
+        "SUBGRAPH_URL_PRODUCTION",
         "BATCH_SIZE",
         "MAX_AGE_BEFORE_DELETION",
         "BIGQUERY_ANALYSIS_PERIOD_DAYS",
         "PRIVATE_KEY",
+        "STUDIO_API_KEY",
+        "STUDIO_DEPLOY_KEY",
+        "SLACK_WEBHOOK_URL",
+        "ETHERSCAN_API_KEY",
+        "ARBITRUM_API_KEY",
     ]
-    missing = [field for field in required if config.get(field) is None or config.get(field) == []]
+    missing = [field for field in required if not config.get(field)]
     if missing:
         raise ConfigurationError(
             f"Missing required configuration fields in config.toml or environment variables: {', '.join(sorted(missing))}"
@@ -352,7 +369,7 @@ class CredentialManager:
             credentials = service_account.Credentials.from_service_account_info(creds_data)
 
             # Set credentials globally for GCP libraries
-            google.auth._default._CREDENTIALS = credentials
+            google.auth._default._CREDENTIALS = credentials  # type: ignore[attr-defined]
             logger.info("Successfully loaded service account credentials from environment variable")
 
         # If the credentials creation fails, raise an error
