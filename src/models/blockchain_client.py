@@ -25,7 +25,14 @@ logger = logging.getLogger(__name__)
 class BlockchainClient:
     """Handles all blockchain interactions"""
 
-    def __init__(self, rpc_providers: List[str], contract_address: str, project_root: Path):
+    def __init__(
+        self,
+        rpc_providers: List[str],
+        contract_address: str,
+        project_root: Path,
+        block_explorer_url: str,
+        tx_timeout_seconds: int,
+    ):
         """
         Initialize the blockchain client.
 
@@ -33,10 +40,14 @@ class BlockchainClient:
             rpc_providers: List of RPC provider URLs
             contract_address: Smart contract address
             project_root: Path to project root directory
+            block_explorer_url: Base URL for the block explorer (e.g., https://sepolia.arbiscan.io)
+            tx_timeout_seconds: Seconds to wait for a transaction receipt.
         """
         self.rpc_providers = rpc_providers
         self.contract_address = contract_address
         self.project_root = project_root
+        self.block_explorer_url = block_explorer_url.rstrip("/")
+        self.tx_timeout_seconds = tx_timeout_seconds
         self.contract_abi = self._load_contract_abi()
 
 
@@ -103,19 +114,18 @@ class BlockchainClient:
         raise ConnectionError(f"Failed to connect to any of {len(rpc_providers)} RPC providers: {rpc_providers}")
 
 
-    def _setup_transaction_account(self, private_key: str, w3: Web3) -> str:
+    def _setup_transaction_account(self, private_key: str) -> str:
         """
         Get the address of the account from the private key.
 
         Args:
             private_key: Private key for the account
-            w3: Web3 instance
 
         Returns:
             str: Address of the account
         """
         try:
-            account = w3.eth.account.from_key(private_key)
+            account = Web3().eth.account.from_key(private_key)
             logger.info(f"Using account: {account.address}")
             return account.address
 
@@ -352,60 +362,6 @@ class BlockchainClient:
             raise
 
 
-    def _build_and_send_transaction(
-        self,
-        w3: Web3,
-        contract_func: Any,
-        indexer_addresses: List[str],
-        data_bytes: bytes,
-        sender_address: str,
-        private_key: str,
-        chain_id: int,
-        gas_limit: int,
-        nonce: int,
-        replace: bool,
-    ) -> str:
-        """
-        Build, sign, and send the transaction.
-
-        Args:
-            w3: Web3 instance
-            contract_func: Contract function to call
-            indexer_addresses: List of indexer addresses
-            data_bytes: Data bytes for transaction
-            sender_address: Transaction sender address
-            private_key: Private key for signing
-            chain_id: Chain ID
-            gas_limit: Gas limit for transaction
-            nonce: Transaction nonce
-            replace: Whether this is a replacement transaction
-
-        Returns:
-            str: Transaction hash
-        """
-        try:
-            # Get gas prices
-            base_fee, max_priority_fee = self._get_gas_prices(w3, replace)
-
-            # Build transaction parameters
-            tx_params = self._build_transaction_params(
-                sender_address, nonce, chain_id, gas_limit, base_fee, max_priority_fee, replace
-            )
-
-            # Build and sign transaction
-            signed_tx = self._build_and_sign_transaction(
-                w3, contract_func, indexer_addresses, data_bytes, tx_params, private_key
-            )
-
-            # Send transaction
-            return self._send_signed_transaction(w3, signed_tx)
-
-        # If we get an error, log the error and raise an exception
-        except Exception as e:
-            logger.error(f"Error in _build_and_send_transaction: {e}")
-            raise
-
-
     def _execute_complete_transaction(self, w3: Web3, contract: Contract, params: Dict) -> str:
         """
         Execute the complete transaction process using a single RPC connection.
@@ -447,27 +403,38 @@ class BlockchainClient:
         balance_eth = w3.from_wei(balance_wei, "ether")
         logger.info(f"Account balance: {balance_eth} ETH")
 
-        # All transaction steps with the same RPC connection
-        gas_limit = self._estimate_transaction_gas(
-            w3, contract_func, indexer_addresses, data_bytes, sender_address
-        )
-        nonce = self._determine_transaction_nonce(w3, sender_address, replace)
-        tx_hash = self._build_and_send_transaction(
-            w3,
-            contract_func,
-            indexer_addresses,
-            data_bytes,
-            sender_address,
-            private_key,
-            chain_id,
-            gas_limit,
-            nonce,
-            replace,
-        )
+        try:
+            # 1. Estimate gas
+            gas_limit = self._estimate_transaction_gas(
+                w3, contract_func, indexer_addresses, data_bytes, sender_address
+            )
+
+            # 2. Determine nonce
+            nonce = self._determine_transaction_nonce(w3, sender_address, replace)
+
+            # 3. Get gas prices
+            base_fee, max_priority_fee = self._get_gas_prices(w3, replace)
+
+            # 4. Build transaction parameters
+            tx_params = self._build_transaction_params(
+                sender_address, nonce, chain_id, gas_limit, base_fee, max_priority_fee, replace
+            )
+
+            # 5. Build and sign transaction
+            signed_tx = self._build_and_sign_transaction(
+                w3, contract_func, indexer_addresses, data_bytes, tx_params, private_key
+            )
+
+            # 6. Send transaction
+            tx_hash = self._send_signed_transaction(w3, signed_tx)
+
+        except Exception as e:
+            logger.error(f"Transaction execution failed: {e}", exc_info=True)
+            raise
 
         # Wait for receipt with the same connection
         try:
-            tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
+            tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=self.tx_timeout_seconds)
             if tx_receipt["status"] == 1:
                 logger.info(
                     f"Transaction confirmed in block {tx_receipt['blockNumber']}, "
@@ -550,8 +517,7 @@ class BlockchainClient:
             str: Transaction hash
         """
         # Set up account
-        temp_w3 = Web3()
-        sender_address = self._setup_transaction_account(private_key, temp_w3)
+        sender_address = self._setup_transaction_account(private_key)
 
         # Convert addresses to checksum format
         checksum_addresses = [Web3.to_checksum_address(addr) for addr in indexer_addresses]
@@ -639,7 +605,7 @@ class BlockchainClient:
                         replace,
                         data_bytes,
                     )
-                    tx_links.append(f"https://sepolia.arbiscan.io/tx/{tx_hash}")
+                    tx_links.append(f"{self.block_explorer_url}/tx/{tx_hash}")
                     logger.info(f"Batch {i+1} transaction successful: {tx_hash}")
 
                 # If we get an error, log the error and raise an exception

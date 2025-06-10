@@ -86,6 +86,8 @@ def main(run_date_override: date = None):
             rpc_providers=config["RPC_PROVIDERS"],
             contract_address=config["CONTRACT_ADDRESS"],
             project_root=project_root_path,
+            block_explorer_url=config["BLOCK_EXPLORER_URL"],
+            tx_timeout_seconds=config["TX_TIMEOUT_SECONDS"],
         )
         transaction_links = blockchain_client.batch_allow_indexers_issuance_eligibility(
             indexer_addresses=eligible_indexers,
