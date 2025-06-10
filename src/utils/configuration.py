@@ -128,6 +128,13 @@ class ConfigLoader:
             "BIGQUERY_LOCATION": substituted_config.get("bigquery", {}).get("BIGQUERY_LOCATION_ID", "US"),
             "BIGQUERY_PROJECT_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_PROJECT_ID", "graph-mainnet"),
             "BIGQUERY_DATASET_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_DATASET_ID", "internal_metrics"),
+            "BIGQUERY_TABLE_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_TABLE_ID", "metrics_indexer_attempts"),
+            
+            # Eligibility Criteria
+            "MIN_ONLINE_DAYS": int(substituted_config.get("eligibility_criteria", {}).get("MIN_ONLINE_DAYS", 5)),
+            "MIN_SUBGRAPHS": int(substituted_config.get("eligibility_criteria", {}).get("MIN_SUBGRAPHS", 10)),
+            "MAX_LATENCY_MS": int(substituted_config.get("eligibility_criteria", {}).get("MAX_LATENCY_MS", 5000)),
+            "MAX_BLOCKS_BEHIND": int(substituted_config.get("eligibility_criteria", {}).get("MAX_BLOCKS_BEHIND", 50000)),
             
             # Blockchain settings
             "CONTRACT_ADDRESS": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),

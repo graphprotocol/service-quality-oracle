@@ -64,7 +64,19 @@ def main(run_date_override: date = None):
         # --- Data Fetching Stage ---
         stage = "Data Fetching from BigQuery"
         logger.info(f"Fetching data from {start_date} to {end_date}")
-        bigquery_provider = BigQueryProvider(project=config["BIGQUERY_PROJECT_ID"], location=config["BIGQUERY_LOCATION"])
+        
+        # Construct the full table name from configuration
+        table_name = f"{config['BIGQUERY_PROJECT_ID']}.{config['BIGQUERY_DATASET_ID']}.{config['BIGQUERY_TABLE_ID']}"
+        
+        bigquery_provider = BigQueryProvider(
+            project=config["BIGQUERY_PROJECT_ID"],
+            location=config["BIGQUERY_LOCATION"],
+            table_name=table_name,
+            min_online_days=config["MIN_ONLINE_DAYS"],
+            min_subgraphs=config["MIN_SUBGRAPHS"],
+            max_latency_ms=config["MAX_LATENCY_MS"],
+            max_blocks_behind=config["MAX_BLOCKS_BEHIND"],
+        )
         eligibility_data = bigquery_provider.fetch_indexer_issuance_eligibility_data(start_date, end_date)
         logger.info(f"Successfully fetched data for {len(eligibility_data)} indexers from BigQuery.")
 

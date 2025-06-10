@@ -20,11 +20,25 @@ logger = logging.getLogger(__name__)
 class BigQueryProvider:
     """A class that provides read access to Google BigQuery for indexer data."""
 
-    def __init__(self, project: str, location: str) -> None:
+    def __init__(
+        self,
+        project: str,
+        location: str,
+        table_name: str,
+        min_online_days: int,
+        min_subgraphs: int,
+        max_latency_ms: int,
+        max_blocks_behind: int,
+    ) -> None:
         # Configure BigQuery connection globally for all SQL queries to BigQuery
         bpd.options.bigquery.location = location
         bpd.options.bigquery.project = project
         bpd.options.display.progress_bar = None
+        self.table_name = table_name
+        self.min_online_days = min_online_days
+        self.min_subgraphs = min_subgraphs
+        self.max_latency_ms = max_latency_ms
+        self.max_blocks_behind = max_blocks_behind
 
 
     @retry_with_backoff(max_attempts=10, min_wait=1, max_wait=60, exceptions=(ConnectionError, socket.timeout))
@@ -39,17 +53,6 @@ class BigQueryProvider:
             GOOGLE_APPLICATION_CREDENTIALS environment variable if set. This variable should point to
             the JSON file containing the service account key.
         """
-        # Check if GOOGLE_APPLICATION_CREDENTIALS is set and valid
-        creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-        if creds_path:
-            if not os.path.exists(os.path.expanduser(creds_path)):
-                logger.warning(f"GOOGLE_APPLICATION_CREDENTIALS path not found: {creds_path}")
-                logger.warning("Falling back to gcloud CLI user credentials.")
-            else:
-                logger.info("Using environment variable $GOOGLE_APPLICATION_CREDENTIALS for authentication.")
-        else:
-            logger.warning("GOOGLE_APPLICATION_CREDENTIALS not set, falling back to gcloud CLI user credentials")
-
         # Execute the query with retry logic
         return cast(DataFrame, bpd.read_gbq(query).to_pandas())
 
@@ -85,14 +88,14 @@ class BigQueryProvider:
                 COUNT(*) AS query_attempts,
                 SUM(CASE
                     WHEN status = '200 OK'
-                    AND response_time_ms < 5000
-                    AND blocks_behind < 50000
+                    AND response_time_ms < {self.max_latency_ms}
+                    AND blocks_behind < {self.max_blocks_behind}
                     THEN 1
                     ELSE 0
                 END) AS good_responses,
                 COUNT(DISTINCT deployment) AS unique_subgraphs_served
             FROM
-                internal_metrics.metrics_indexer_attempts
+                {self.table_name}
             WHERE
                 day_partition BETWEEN '{start_date_str}' AND '{end_date_str}'
             GROUP BY
@@ -104,7 +107,7 @@ class BigQueryProvider:
                 indexer,
                 day,
                 unique_subgraphs_served,
-                CASE WHEN good_responses >= 1 AND unique_subgraphs_served >= 10
+                CASE WHEN good_responses >= 1 AND unique_subgraphs_served >= {self.min_subgraphs}
                     THEN 1 ELSE 0
                 END AS is_online_day
             FROM
@@ -116,12 +119,12 @@ class BigQueryProvider:
                 indexer,
                 COUNT(DISTINCT deployment) AS unique_good_response_subgraphs
             FROM
-                internal_metrics.metrics_indexer_attempts
+                {self.table_name}
             WHERE
                 day_partition BETWEEN '{start_date_str}' AND '{end_date_str}'
                 AND status = '200 OK'
-                AND response_time_ms < 5000
-                AND blocks_behind < 50000
+                AND response_time_ms < {self.max_latency_ms}
+                AND blocks_behind < {self.max_blocks_behind}
             GROUP BY
                 indexer
         ),
@@ -150,7 +153,7 @@ class BigQueryProvider:
             total_good_days_online,
             unique_good_response_subgraphs,
             CASE
-                WHEN total_good_days_online >= 5 THEN 1
+                WHEN total_good_days_online >= {self.min_online_days} THEN 1
                 ELSE 0
             END AS eligible_for_indexing_rewards
         FROM
