@@ -9,7 +9,7 @@
 BIGQUERY_LOCATION_ID = ""
 BIGQUERY_PROJECT_ID = ""
 BIGQUERY_DATASET_ID = ""
-BIGQUERY_ANALYSIS_PERIOD_DAYS = "28"
+
 
 [blockchain]
 BLOCKCHAIN_CONTRACT_ADDRESS = ""
@@ -34,6 +34,7 @@ SUBGRAPH_URL_PRODUCTION = ""
 [processing]
 BATCH_SIZE = 125
 MAX_AGE_BEFORE_DELETION = 120
+BIGQUERY_ANALYSIS_PERIOD_DAYS = "28"
 
 # =============================================================================
 # SENSITIVE CONFIGURATION

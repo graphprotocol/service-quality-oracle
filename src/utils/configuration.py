@@ -132,8 +132,10 @@ class ConfigLoader:
             # Blockchain settings
             "CONTRACT_ADDRESS": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),
             "CONTRACT_FUNCTION": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_FUNCTION_NAME"),
-            "CHAIN_ID": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CHAIN_ID"),
+            "CHAIN_ID": int(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CHAIN_ID")),
             "RPC_PROVIDERS": self._parse_rpc_urls(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS", [])),
+            "BLOCK_EXPLORER_URL": substituted_config.get("blockchain", {}).get("BLOCK_EXPLORER_URL", "https://sepolia.arbiscan.io"),
+            "TX_TIMEOUT_SECONDS": int(substituted_config.get("blockchain", {}).get("TX_TIMEOUT_SECONDS", 30)),
             
             # Scheduling
             "SCHEDULED_RUN_TIME": substituted_config.get("scheduling", {}).get("SCHEDULED_RUN_TIME"),
@@ -142,8 +144,9 @@ class ConfigLoader:
             "SUBGRAPH_URL": substituted_config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
             
             # Processing settings
-            "BATCH_SIZE": substituted_config.get("processing", {}).get("BATCH_SIZE", 125),
-            "MAX_AGE_BEFORE_DELETION": substituted_config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION", 120),
+            "BATCH_SIZE": int(substituted_config.get("processing", {}).get("BATCH_SIZE", 125)),
+            "MAX_AGE_BEFORE_DELETION": int(substituted_config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION", 120)),
+            "BIGQUERY_ANALYSIS_PERIOD_DAYS": int(substituted_config.get("processing", {}).get("BIGQUERY_ANALYSIS_PERIOD_DAYS", 28)),
             
             # Secrets
             "GOOGLE_APPLICATION_CREDENTIALS": substituted_config.get("secrets", {}).get("GOOGLE_APPLICATION_CREDENTIALS"),

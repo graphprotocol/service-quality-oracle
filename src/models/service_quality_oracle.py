@@ -64,7 +64,7 @@ def main(run_date_override: date = None):
         # --- Data Fetching Stage ---
         stage = "Data Fetching from BigQuery"
         logger.info(f"Fetching data from {start_date} to {end_date}")
-        bigquery_provider = BigQueryProvider(project=config["BIGQUERY_PROJECT"], location=config["BIGQUERY_LOCATION"])
+        bigquery_provider = BigQueryProvider(project=config["BIGQUERY_PROJECT_ID"], location=config["BIGQUERY_LOCATION"])
         eligibility_data = bigquery_provider.fetch_indexer_issuance_eligibility_data(start_date, end_date)
         logger.info(f"Successfully fetched data for {len(eligibility_data)} indexers from BigQuery.")
 
