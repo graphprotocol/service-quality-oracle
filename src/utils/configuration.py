@@ -285,8 +285,8 @@ class CredentialManager:
             raise ValueError(f"Invalid credentials JSON: {e}") from e
 
 
-    def _setup_user_credentials_in_memory(self, creds_data: dict) -> None:
-        """Set up user account credentials directly in memory."""
+    def _setup_user_credentials_from_dict(self, creds_data: dict) -> None:
+        """Set up user account credentials directly from a dictionary."""
         import google.auth
         from google.oauth2.credentials import Credentials
     
@@ -310,8 +310,8 @@ class CredentialManager:
                 creds_data.clear()
 
 
-    def _setup_service_account_credentials_in_memory(self, creds_data: dict) -> None:
-        """Set up service account credentials directly in memory."""
+    def _setup_service_account_credentials_from_dict(self, creds_data: dict) -> None:
+        """Set up service account credentials directly from a dictionary."""
         import google.auth
         from google.oauth2 import service_account
 
@@ -358,9 +358,9 @@ class CredentialManager:
 
                 # Set up the credentials based on the type
                 if creds_data.get("type") == "authorized_user":
-                    self._setup_user_credentials_in_memory(creds_data.copy())
+                    self._setup_user_credentials_from_dict(creds_data.copy())
                 else:
-                    self._setup_service_account_credentials_in_memory(creds_data.copy())
+                    self._setup_service_account_credentials_from_dict(creds_data.copy())
 
             # If the credentials parsing fails, raise an error
             except Exception as e:
