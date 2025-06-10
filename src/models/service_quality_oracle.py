@@ -8,7 +8,6 @@ This module serves as the entry point for the oracle functionality, responsible 
 """
 
 import logging
-import os
 import sys
 import time
 from datetime import date, timedelta
@@ -64,10 +63,12 @@ def main(run_date_override: date = None):
         # --- Data Fetching Stage ---
         stage = "Data Fetching from BigQuery"
         logger.info(f"Fetching data from {start_date} to {end_date}")
-        
+
         # Construct the full table name from configuration
-        table_name = f"{config['BIGQUERY_PROJECT_ID']}.{config['BIGQUERY_DATASET_ID']}.{config['BIGQUERY_TABLE_ID']}"
-        
+        table_name = (
+            f"{config['BIGQUERY_PROJECT_ID']}.{config['BIGQUERY_DATASET_ID']}.{config['BIGQUERY_TABLE_ID']}"
+        )
+
         bigquery_provider = BigQueryProvider(
             project=config["BIGQUERY_PROJECT_ID"],
             location=config["BIGQUERY_LOCATION"],

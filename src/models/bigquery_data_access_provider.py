@@ -3,7 +3,6 @@ A provider for accessing Google BigQuery data for the Service Quality Oracle.
 """
 
 import logging
-import os
 import socket
 from datetime import date
 from typing import cast

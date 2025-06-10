@@ -22,10 +22,12 @@ logger = logging.getLogger(__name__)
 
 class ConfigurationError(Exception):
     """Raised when configuration loading or validation fails."""
+
     pass
 
 
 # --- Configuration Loading ---
+
 
 class ConfigLoader:
     """Internal class to load configuration from TOML and environment variables."""
@@ -42,7 +44,7 @@ class ConfigLoader:
         docker_path = Path("/app/config.toml")
         if docker_path.exists():
             return str(docker_path)
-        
+
         # For local development, look in project root
         current_path = Path(__file__).parent
         while current_path != current_path.parent:
@@ -50,7 +52,7 @@ class ConfigLoader:
             if config_path.exists():
                 return str(config_path)
             current_path = current_path.parent
-        
+
         raise ConfigurationError("Could not find config.toml in project root or Docker container")
 
 
@@ -73,23 +75,22 @@ class ConfigLoader:
             # Find all environment variable references
             env_vars = self._env_var_pattern.findall(config_toml)
 
-
             for env_var in env_vars:
                 env_value = os.getenv(env_var)
                 if env_value is None:
                     raise ConfigurationError(f"Required environment variable {env_var} is not set")
-            
+
                 # Replace the environment variable reference with actual value
                 config_toml = config_toml.replace(f"${env_var}", env_value)
 
             return config_toml
-        
+
         elif isinstance(config_toml, dict):
             return {k: self._substitute_env_vars(v) for k, v in config_toml.items()}
-        
+
         elif isinstance(config_toml, list):
             return [self._substitute_env_vars(item) for item in config_toml]
-        
+
         return config_toml
 
 
@@ -120,7 +121,7 @@ class ConfigLoader:
         """
         raw_config = self._get_raw_config()
         substituted_config = self._substitute_env_vars(raw_config)
-        
+
         # fmt: off
         # Convert nested structure to flat format
         return {
@@ -129,13 +130,13 @@ class ConfigLoader:
             "BIGQUERY_PROJECT_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_PROJECT_ID"),
             "BIGQUERY_DATASET_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_DATASET_ID"),
             "BIGQUERY_TABLE_ID": substituted_config.get("bigquery", {}).get("BIGQUERY_TABLE_ID"),
-            
+
             # Eligibility Criteria
             "MIN_ONLINE_DAYS": int(substituted_config.get("eligibility_criteria", {}).get("MIN_ONLINE_DAYS")),
             "MIN_SUBGRAPHS": int(substituted_config.get("eligibility_criteria", {}).get("MIN_SUBGRAPHS")),
             "MAX_LATENCY_MS": int(substituted_config.get("eligibility_criteria", {}).get("MAX_LATENCY_MS")),
             "MAX_BLOCKS_BEHIND": int(substituted_config.get("eligibility_criteria", {}).get("MAX_BLOCKS_BEHIND")),
-            
+
             # Blockchain settings
             "CONTRACT_ADDRESS": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),
             "CONTRACT_FUNCTION": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_FUNCTION_NAME"),
@@ -143,18 +144,18 @@ class ConfigLoader:
             "RPC_PROVIDERS": self._parse_rpc_urls(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS")),
             "BLOCK_EXPLORER_URL": substituted_config.get("blockchain", {}).get("BLOCK_EXPLORER_URL"),
             "TX_TIMEOUT_SECONDS": int(substituted_config.get("blockchain", {}).get("TX_TIMEOUT_SECONDS")),
-            
+
             # Scheduling
             "SCHEDULED_RUN_TIME": substituted_config.get("scheduling", {}).get("SCHEDULED_RUN_TIME"),
-            
+
             # Subgraph URLs
             "SUBGRAPH_URL": substituted_config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
-            
+
             # Processing settings
             "BATCH_SIZE": int(substituted_config.get("processing", {}).get("BATCH_SIZE")),
             "MAX_AGE_BEFORE_DELETION": int(substituted_config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION")),
             "BIGQUERY_ANALYSIS_PERIOD_DAYS": int(substituted_config.get("processing", {}).get("BIGQUERY_ANALYSIS_PERIOD_DAYS")),
-            
+
             # Secrets
             "GOOGLE_APPLICATION_CREDENTIALS": substituted_config.get("secrets", {}).get("GOOGLE_APPLICATION_CREDENTIALS"),
             "PRIVATE_KEY": substituted_config.get("secrets", {}).get("BLOCKCHAIN_PRIVATE_KEY"),
@@ -214,11 +215,24 @@ class ConfigLoader:
 def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
     # Define required fields. All other fields from `get_flat_config` are considered optional.
     required = [
-        "BIGQUERY_LOCATION", "BIGQUERY_PROJECT_ID", "BIGQUERY_DATASET_ID", "BIGQUERY_TABLE_ID",
-        "MIN_ONLINE_DAYS", "MIN_SUBGRAPHS", "MAX_LATENCY_MS", "MAX_BLOCKS_BEHIND",
-        "CONTRACT_ADDRESS", "CONTRACT_FUNCTION", "CHAIN_ID", "RPC_PROVIDERS",
-        "BLOCK_EXPLORER_URL", "TX_TIMEOUT_SECONDS", "SCHEDULED_RUN_TIME",
-        "BATCH_SIZE", "MAX_AGE_BEFORE_DELETION", "BIGQUERY_ANALYSIS_PERIOD_DAYS",
+        "BIGQUERY_LOCATION",
+        "BIGQUERY_PROJECT_ID",
+        "BIGQUERY_DATASET_ID",
+        "BIGQUERY_TABLE_ID",
+        "MIN_ONLINE_DAYS",
+        "MIN_SUBGRAPHS",
+        "MAX_LATENCY_MS",
+        "MAX_BLOCKS_BEHIND",
+        "CONTRACT_ADDRESS",
+        "CONTRACT_FUNCTION",
+        "CHAIN_ID",
+        "RPC_PROVIDERS",
+        "BLOCK_EXPLORER_URL",
+        "TX_TIMEOUT_SECONDS",
+        "SCHEDULED_RUN_TIME",
+        "BATCH_SIZE",
+        "MAX_AGE_BEFORE_DELETION",
+        "BIGQUERY_ANALYSIS_PERIOD_DAYS",
         "PRIVATE_KEY",
     ]
     missing = [field for field in required if config.get(field) is None or config.get(field) == []]
@@ -232,7 +246,9 @@ def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
         # The int() casts in get_flat_config will handle type errors for numeric fields.
         datetime.strptime(config["SCHEDULED_RUN_TIME"], "%H:%M")
     except (ValueError, TypeError):
-        raise ConfigurationError(f"Invalid SCHEDULED_RUN_TIME: {config['SCHEDULED_RUN_TIME']} - must be in HH:MM format.")
+        raise ConfigurationError(
+            f"Invalid SCHEDULED_RUN_TIME: {config['SCHEDULED_RUN_TIME']} - must be in HH:MM format."
+        )
 
     return config
 
@@ -255,6 +271,7 @@ def validate_all_required_env_vars() -> None:
 
 
 # --- Credential Management ---
+
 
 class CredentialManager:
     """Handles credential management for Google Cloud services."""
@@ -303,7 +320,7 @@ class CredentialManager:
         """Set up user account credentials directly from a dictionary."""
         import google.auth
         from google.oauth2.credentials import Credentials
-    
+
         # Try to set up the credentials
         try:
             credentials = Credentials(
@@ -315,7 +332,7 @@ class CredentialManager:
             )
 
             # Set credentials globally for GCP libraries
-            google.auth._default._CREDENTIALS = credentials # type: ignore[attr-defined]
+            google.auth._default._CREDENTIALS = credentials  # type: ignore[attr-defined]
             logger.info("Successfully loaded user account credentials from environment variable")
 
         # Clear credentials from memory
@@ -337,7 +354,7 @@ class CredentialManager:
             # Set credentials globally for GCP libraries
             google.auth._default._CREDENTIALS = credentials
             logger.info("Successfully loaded service account credentials from environment variable")
-        
+
         # If the credentials creation fails, raise an error
         except Exception as e:
             raise ValueError(f"Invalid service account credentials: {e}") from e
@@ -379,16 +396,17 @@ class CredentialManager:
             # If the credentials parsing fails, raise an error
             except Exception as e:
                 raise ValueError(f"Error processing inline credentials: {e}") from e
-        
+
             # Clear the credentials from memory
             finally:
                 if creds_data:
                     creds_data.clear()
-        
+
         # Case 2: File path provided
         elif not os.path.exists(creds_env):
-            logger.warning(f"GOOGLE_APPLICATION_CREDENTIALS is not valid JSON or a file path.")
+            logger.warning("GOOGLE_APPLICATION_CREDENTIALS is not valid JSON or a file path.")
             logger.warning("Falling back to gcloud CLI authentication if available.")
 
+
 # Global instance for easy access
-credential_manager = CredentialManager() 
+credential_manager = CredentialManager()

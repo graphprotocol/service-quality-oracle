@@ -26,9 +26,11 @@ HEALTHCHECK_FILE = "/app/healthcheck"
 
 
 class Scheduler:
+
     def __init__(self):
         self.slack_notifier = None
         self.config = self.initialize()
+
 
     def get_last_run_date(self):
         """
@@ -57,6 +59,7 @@ class Scheduler:
 
         return last_run_date
 
+
     def save_last_run_date(self, run_date):
         """Save the date of the last successful run to a file that we continuously overwrite each time"""
         try:
@@ -65,6 +68,7 @@ class Scheduler:
                 f.write(run_date.strftime("%Y-%m-%d"))
         except Exception as e:
             logger.error(f"Error saving last run date: {e}")
+
 
     def update_healthcheck(self, message=None):
         """Update the healthcheck file with current timestamp and optional message"""
@@ -76,6 +80,7 @@ class Scheduler:
                     f.write(f"\n{message}")
         except Exception as e:
             logger.warning(f"Failed to update healthcheck file: {e}")
+
 
     @retry(
         stop=stop_after_attempt(5),
@@ -105,9 +110,12 @@ class Scheduler:
         self.save_last_run_date(run_date)
         end_time = datetime.now()
         duration_in_seconds = (end_time - start_time).total_seconds()
-        success_message = f"Scheduler successfully triggered oracle run for {run_date}. Duration: {duration_in_seconds:.2f}s"
+        success_message = (
+            f"Scheduler successfully triggered oracle run for {run_date}. Duration: {duration_in_seconds:.2f}s"
+        )
         logger.info(success_message)
         self.update_healthcheck(success_message)
+
 
     def check_missed_runs(self):
         """Check if we missed any runs and execute them if needed"""
@@ -137,6 +145,7 @@ class Scheduler:
             logger.info(f"Executing missed run for {yesterday}")
             # The run_oracle method is decorated with @retry, so it will handle its own retries.
             self.run_oracle(run_date_override=yesterday)
+
 
     def initialize(self):
         """Initialize the scheduler and validate configuration"""
@@ -186,6 +195,7 @@ class Scheduler:
                     error_message=str(e), stage="Scheduler Initialization", execution_time=0
                 )
             sys.exit(1)
+
 
     def run(self):
         """Main loop for the scheduler"""

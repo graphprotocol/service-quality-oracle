@@ -33,9 +33,7 @@ class EligibilityPipeline:
         self.output_dir = project_root / "data" / "output"
 
 
-    def process(
-        self, input_data_from_bigquery: pd.DataFrame, current_date: date
-    ) -> Tuple[List[str], List[str]]:
+    def process(self, input_data_from_bigquery: pd.DataFrame, current_date: date) -> Tuple[List[str], List[str]]:
         """
         Process raw BigQuery data to generate data and return eligible indexer lists.
 
@@ -65,6 +63,7 @@ class EligibilityPipeline:
 
         # 4. Return the lists of indexers
         return eligible_df["indexer"].tolist(), ineligible_df["indexer"].tolist()
+
 
     def _generate_files(
         self, raw_data: pd.DataFrame, eligible_df: pd.DataFrame, ineligible_df: pd.DataFrame, output_date_dir: Path
