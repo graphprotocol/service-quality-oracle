@@ -285,7 +285,7 @@ def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
         raise ConfigurationError(f"Missing required configuration fields: {', '.join(missing_fields)}")
 
     # Validate RPC providers
-    if not config.get("rpc_providers") or not isinstance(config["rpc_providers"], list):
+    if not config.get("RPC_PROVIDERS") or not isinstance(config["RPC_PROVIDERS"], list):
         raise ConfigurationError("BLOCKCHAIN_RPC_URLS must be a list of valid RPC URLs")
 
     return config
