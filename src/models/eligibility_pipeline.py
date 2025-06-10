@@ -50,21 +50,25 @@ class EligibilityPipeline:
         required_cols = ["indexer", "eligible_for_indexing_rewards"]
         self.validate_dataframe_structure(input_data_from_bigquery, required_cols)
 
-        # 2. Generate and save files
-        output_date_dir = self.get_date_output_directory(current_date)
-        self._generate_files(input_data_from_bigquery, output_date_dir)
-
-        # 3. Filter and return the lists of indexers
+        # 2. Filter data into eligible and ineligible groups
         eligible_df = input_data_from_bigquery[
             input_data_from_bigquery["eligible_for_indexing_rewards"] == 1
-        ]
+        ].copy()
+
         ineligible_df = input_data_from_bigquery[
             input_data_from_bigquery["eligible_for_indexing_rewards"] == 0
-        ]
+        ].copy()
 
+        # 3. Generate and save files
+        output_date_dir = self.get_date_output_directory(current_date)
+        self._generate_files(input_data_from_bigquery, eligible_df, ineligible_df, output_date_dir)
+
+        # 4. Return the lists of indexers
         return eligible_df["indexer"].tolist(), ineligible_df["indexer"].tolist()
 
-    def _generate_files(self, data: pd.DataFrame, output_date_dir: Path) -> None:
+    def _generate_files(
+        self, raw_data: pd.DataFrame, eligible_df: pd.DataFrame, ineligible_df: pd.DataFrame, output_date_dir: Path
+    ) -> None:
         """
         Save the raw and filtered dataframes to CSV files in a date-specific directory.
         - indexer_issuance_eligibility_data.csv (raw data)
@@ -72,20 +76,18 @@ class EligibilityPipeline:
         - ineligible_indexers.csv (only ineligible indexer addresses)
 
         Args:
-            data: The input DataFrame containing all indexer data.
-            output_date_dir: The directory where artifacts will be saved.
+            raw_data: The input DataFrame containing all indexer data.
+            eligible_df: DataFrame containing only eligible indexers.
+            ineligible_df: DataFrame containing only ineligible indexers.
+            output_date_dir: The directory where files will be saved.
         """
         # Ensure the output directory exists, creating parent directories if necessary
         output_date_dir.mkdir(exist_ok=True, parents=True)
 
         # Save raw data for internal use
         raw_data_path = output_date_dir / "indexer_issuance_eligibility_data.csv"
-        data.to_csv(raw_data_path, index=False)
+        raw_data.to_csv(raw_data_path, index=False)
         logger.info(f"Saved raw BigQuery results to: {raw_data_path}")
-
-        # Filter and save eligible/ineligible indexer lists
-        eligible_df = data[data["eligible_for_indexing_rewards"] == 1]
-        ineligible_df = data[data["eligible_for_indexing_rewards"] == 0]
 
         # Save filtered data
         eligible_path = output_date_dir / "eligible_indexers.csv"
@@ -173,7 +175,9 @@ class EligibilityPipeline:
 
         # If any required columns are missing, raise an error
         if missing_columns:
-            raise ValueError(f"DataFrame missing required columns: {missing_columns}")
+            raise ValueError(
+                f"DataFrame missing required columns: {missing_columns}. " f"Found columns: {list(df.columns)}"
+            )
 
         # If all required columns are present, return True
         return True
