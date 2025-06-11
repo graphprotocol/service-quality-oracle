@@ -116,22 +116,29 @@ class BlockchainClient:
         raise ConnectionError(f"Failed to connect to any of {len(rpc_providers)} RPC providers: {rpc_providers}")
 
 
-    def _setup_transaction_account(self, private_key: str) -> str:
+    def _setup_transaction_account(self, private_key: str) -> Tuple[str, str]:
         """
-        Get the address of the account from the private key.
+        Validate the private key and return the formatted key and account address.
 
         Args:
-            private_key: Private key for the account
+            private_key: The private key string.
 
         Returns:
-            str: Address of the account
+            A tuple containing the account address and the formatted private key.
+
+        Raises:
+            KeyValidationError: If the private key is invalid.
         """
         try:
-            account = Web3().eth.account.from_key(private_key)
+            formatted_key = validate_and_format_private_key(private_key)
+            account = Web3().eth.account.from_key(formatted_key)
             logger.info(f"Using account: {account.address}")
-            return account.address
+            return account.address, formatted_key
 
-        # If the account cannot be retrieved, log the error and raise an exception
+        except KeyValidationError as e:
+            logger.error(f"Invalid private key provided: {e}")
+            raise
+
         except Exception as e:
             logger.error(f"Failed to retrieve account from private key: {str(e)}")
             raise
@@ -530,15 +537,15 @@ class BlockchainClient:
         Returns:
             str: Transaction hash
         """
-        # Set up account
-        sender_address = self._setup_transaction_account(private_key)
+        # Set up account and validate private key
+        sender_address, formatted_private_key = self._setup_transaction_account(private_key)
 
         # Convert addresses to checksum format
         checksum_addresses = [Web3.to_checksum_address(addr) for addr in indexer_addresses]
 
         # Prepare all parameters for the transaction
         transaction_params = {
-            "private_key": private_key,
+            "private_key": formatted_private_key,
             "contract_function": contract_function,
             "indexer_addresses": checksum_addresses,
             "data_bytes": data_bytes,
@@ -596,43 +603,36 @@ class BlockchainClient:
         num_batches = (total_indexers + batch_size - 1) // batch_size
         logger.info(f"Processing {total_indexers} indexers in {num_batches} batch(es) of {batch_size}")
 
-        try:
-            tx_links = []
-            # Validate and format private key
-            validated_private_key = validate_and_format_private_key(private_key)
+        tx_links = []
 
-            # Process each batch
-            for i in range(num_batches):
-                start_idx = i * batch_size
-                end_idx = min(start_idx + batch_size, total_indexers)
-                batch_indexers = indexer_addresses[start_idx:end_idx]
+        # Process each batch
+        for i in range(num_batches):
+            start_idx = i * batch_size
+            end_idx = min(start_idx + batch_size, total_indexers)
+            batch_indexers = indexer_addresses[start_idx:end_idx]
 
-                logger.info(f"Processing batch {i+1}/{num_batches} with {len(batch_indexers)} indexers")
+            logger.info(f"Processing batch {i+1}/{num_batches} with {len(batch_indexers)} indexers")
 
-                # Try to send the transaction to the network (uses RPC failover)
-                try:
-                    tx_hash = self.send_transaction_to_allow_indexers(
-                        batch_indexers,
-                        validated_private_key,
-                        chain_id,
-                        contract_function,
-                        replace,
-                        data_bytes,
-                    )
-                    tx_links.append(f"{self.block_explorer_url}/tx/{tx_hash}")
-                    logger.info(f"Batch {i+1} transaction successful: {tx_hash}")
+            # Try to send the transaction to the network (uses RPC failover)
+            try:
+                tx_hash = self.send_transaction_to_allow_indexers(
+                    batch_indexers,
+                    private_key,
+                    chain_id,
+                    contract_function,
+                    replace,
+                    data_bytes,
+                )
+                tx_links.append(f"{self.block_explorer_url}/tx/{tx_hash}")
+                logger.info(f"Batch {i+1} transaction successful: {tx_hash}")
 
-                # If we get an error, log the error and raise an exception
-                except Exception as e:
-                    logger.error(f"Error processing batch {i+1} due to: {e}")
-                    raise
+            # If we get an error, log the error and raise an exception
+            except Exception as e:
+                logger.error(f"Error processing batch {i+1} due to: {e}")
+                raise
 
-            # Log all transaction links
-            for i, tx_link in enumerate(tx_links, 1):
-                logger.info(f"Transaction link {i} of {len(tx_links)}: {tx_link}")
+        # Log all transaction links
+        for i, tx_link in enumerate(tx_links, 1):
+            logger.info(f"Transaction link {i} of {len(tx_links)}: {tx_link}")
 
-            return tx_links
-
-        except KeyValidationError as e:
-            logger.error(f"Private key validation failed: {e}")
-            raise ValueError(f"Invalid private key: {e}") from e
+        return tx_links
