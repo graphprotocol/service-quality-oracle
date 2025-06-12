@@ -335,7 +335,7 @@ class BlockchainClient:
 
         # Try to get the max priority fee
         try:
-            max_priority_fee = self._execute_rpc_call(self.w3.eth.max_priority_fee)
+            max_priority_fee = self._execute_rpc_call(lambda: self.w3.eth.max_priority_fee)
             logger.info(f"Max priority fee: {max_priority_fee/1e9:.2f} gwei")
 
         # If the max priority fee cannot be retrieved, use a fallback value
@@ -511,7 +511,8 @@ class BlockchainClient:
         replace = params["replace"]
 
         # 1. Setup account
-        sender_address, formatted_private_key = self._setup_transaction_account(private_key)
+        sender_address_str, formatted_private_key = self._setup_transaction_account(private_key)
+        sender_address = Web3.to_checksum_address(sender_address_str)
 
         # 2. Get contract function
         if not self.contract or not hasattr(self.contract.functions, contract_function_name):
