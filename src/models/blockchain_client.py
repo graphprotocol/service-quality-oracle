@@ -27,6 +27,7 @@ from web3.types import BlockData, ChecksumAddress
 
 from src.utils.key_validator import KeyValidationError, validate_and_format_private_key
 from src.utils.retry_decorator import retry_with_backoff
+from src.utils.slack_notifier import SlackNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ class BlockchainClient:
         project_root: Path,
         block_explorer_url: str,
         tx_timeout_seconds: int,
+        slack_notifier: Optional[SlackNotifier] = None,
     ):
         """
         Initialize the blockchain client.
@@ -64,12 +66,14 @@ class BlockchainClient:
             project_root: Path to project root directory
             block_explorer_url: Base URL for the block explorer (e.g., https://sepolia.arbiscan.io)
             tx_timeout_seconds: Seconds to wait for a transaction receipt.
+            slack_notifier: Optional instance of SlackNotifier for sending alerts.
         """
         self.rpc_providers = rpc_providers
         self.contract_address = contract_address
         self.project_root = project_root
         self.block_explorer_url = block_explorer_url.rstrip("/")
         self.tx_timeout_seconds = tx_timeout_seconds
+        self.slack_notifier = slack_notifier
         self.contract_abi = self._load_contract_abi()
         self.current_rpc_index = 0
         self.w3: Optional[Web3] = None
@@ -126,8 +130,22 @@ class BlockchainClient:
 
     def _get_next_rpc_provider(self) -> None:
         """Rotate to the next RPC provider and reconnect."""
+        previous_provider_url = self.rpc_providers[self.current_rpc_index]
         self.current_rpc_index = (self.current_rpc_index + 1) % len(self.rpc_providers)
-        logger.warning(f"Switching to next RPC provider, index {self.current_rpc_index}")
+        new_provider_url = self.rpc_providers[self.current_rpc_index]
+
+        warning_message = (
+            f"Switching from previous RPC provider due to persistent errors.\n"
+            f"Previous: `{previous_provider_url}`\n"
+            f"New: `{new_provider_url}`"
+        )
+        logger.warning(warning_message)
+
+        if self.slack_notifier:
+            self.slack_notifier.send_info_notification(
+                message=warning_message, title="RPC Provider Rotation"
+            )
+
         self._connect_to_rpc()
 
 
