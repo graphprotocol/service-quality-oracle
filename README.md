@@ -127,19 +127,15 @@ bandit -r src/
 
 ## TODO List (only outstanding TODOs)
 
-### 1. Production Readiness
-- [ ] Check error recovery mechanisms to see if they could be improved (RPC failover, retry logic)
-- [ ] Verify health check endpoints or processes (Docker healthcheck)
-
-### 2. Testing
+### 1. Testing
 - [ ] Create unit tests for all components
 - [ ] Create integration tests for the entire pipeline
 - [ ] Security review of code and dependencies
 
-### 3. Documentation
+### 2. Documentation
 - [ ] Documentation of all major components
 - [ ] Document operational procedures
 
-### 4. Optimization
+### 3. Optimization
 - [ ] Optimize dependencies and container setup
 - [ ] Ensure unused files, functions & dependencies are removed from codebase
