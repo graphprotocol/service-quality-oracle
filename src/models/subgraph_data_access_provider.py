@@ -30,22 +30,30 @@ class SubgraphProvider:
         Initialize the subgraph provider.
         Automatically loads configuration from config loader.
         """
-        # Import here to avoid circular imports
-        from src.utils.config_loader import load_config
+        from src.utils.configuration import load_config
 
         # Load configuration
         config = load_config()
+
         # Get subgraph URL and API key from config
         self.subgraph_url = config.get("subgraph_url")
         self.api_key = config.get("studio_api_key")
-        # Validate configuration
+
+        # If the subgraph URL is not set, raise an error
         if not self.subgraph_url:
             raise ValueError("SUBGRAPH_URL_PRODUCTION not set in configuration")
+
+        # Log the initialized subgraph provider
         logger.info(f"Initialized SubgraphProvider with endpoint: {self.subgraph_url}")
+
+        # If the API key is set, log a message
         if self.api_key:
             logger.info("API key loaded for subgraph queries")
+
+        # If the API key is not set, log a warning
         else:
             logger.warning("No API key found, subgraph queries may be limited")
+
 
     def fetch_all_indexers(self) -> list[dict[str, Any]]:
         """
@@ -67,6 +75,7 @@ class SubgraphProvider:
             current_skip += page_size
         logger.info(f"Fetched {len(all_indexers)} total indexers from subgraph")
         return all_indexers
+
 
     def get_indexer_eligibility_statuses(self, first: int = 1000, skip: int = 0) -> list[dict[str, Any]]:
         """
@@ -95,6 +104,7 @@ class SubgraphProvider:
         else:
             logger.error(f"Unexpected response format: {result}")
             return []
+
 
     def execute_query(self, query: str, variables: Optional[dict[str, Any]] = None) -> dict[str, Any]:
         """

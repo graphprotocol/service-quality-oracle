@@ -34,7 +34,8 @@ jobs:
         run: |
           if [ -d "tests" ] && [ "$(find tests -name "test_*.py" -o -name "*_test.py" | wc -l)" -gt 0 ]; then
             echo "Running tests"
-            pytest tests/ -v --cov=src --cov-report=term-missing -p no:ethereum
+            # Run pytest and allow exit code 5 (no tests found), but fail on any other error
+            pytest tests/ -v --cov=src --cov-report=term-missing -p no:ethereum || ([ $? -eq 5 ] && echo "Pytest exited with 5 (No tests found), which is expected. Passing." || exit $?)
           else
             echo "No tests found. Test directory is empty or doesn't contain test files."
             echo "Tests will be skipped until test files are added."

@@ -66,7 +66,7 @@ jobs:
           cd src
           python -c "
           import sys; sys.path.insert(0, '..')
-          from src.utils.config_loader import load_config
+          from src.utils.configuration import load_config
           from src.utils.key_validator import validate_and_format_private_key
           print('Core modules import successfully')
           "
@@ -74,14 +74,50 @@ jobs:
       - name: Validate configuration
         run: |
           python -c "
-          import tomli
-          with open('config.toml.example', 'rb') as f:
-              config = tomli.load(f)
-          required = ['bigquery', 'blockchain', 'scheduling', 'secrets']
-          for section in required:
-              if section not in config:
-                  raise ValueError(f'Missing section: {section}')
-          print('Configuration valid')
+          import sys
+          import os
+          
+          # Add project root to path
+          sys.path.insert(0, '.')
+          
+          os.environ['BLOCKCHAIN_PRIVATE_KEY'] = '0x' + 'f' * 64
+          os.environ['SLACK_WEBHOOK_URL'] = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'
+          os.environ['STUDIO_API_KEY'] = 'api-key'
+          os.environ['STUDIO_DEPLOY_KEY'] = 'deploy-key'
+          os.environ['ARBITRUM_API_KEY'] = 'api-key'
+          os.environ['ETHERSCAN_API_KEY'] = 'api-key'
+          os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '{}'
+          
+          from src.utils.configuration import ConfigLoader, _validate_config
+          
+          print('Validating config.toml.example...')
+          
+          # Use the example file and run the full validation logic from our application
+          loader = ConfigLoader(config_path='config.toml.example')
+          config = loader.get_flat_config()
+
+          print('Patching config in-memory with dummy data for validation...')
+          config_to_validate = config.copy()
+          config_to_validate.update({
+              'BIGQUERY_LOCATION_ID': 'dummy-location',
+              'BIGQUERY_PROJECT_ID': 'dummy-project',
+              'BIGQUERY_DATASET_ID': 'dummy-dataset',
+              'BIGQUERY_TABLE_ID': 'dummy-table',
+              'BLOCKCHAIN_CONTRACT_ADDRESS': '0x' + '0' * 40,
+              'BLOCKCHAIN_FUNCTION_NAME': 'dummyFunction',
+              'BLOCKCHAIN_CHAIN_ID': 1,
+              'BLOCKCHAIN_RPC_URLS': ['http://dummy-rpc.com'],
+              'SUBGRAPH_URL_PRE_PRODUCTION': 'http://dummy-subgraph.com',
+              'SUBGRAPH_URL_PRODUCTION': 'http://dummy-subgraph.com',
+              'SCHEDULED_RUN_TIME': '00:00',
+              'BATCH_SIZE': 100,
+              'MAX_AGE_BEFORE_DELETION': 100,
+              'BIGQUERY_ANALYSIS_PERIOD_DAYS': 100,
+          })
+          
+          _validate_config(config_to_validate)
+          
+          print('config.toml.example is structurally valid.')
           "
 
   # =============================================================================

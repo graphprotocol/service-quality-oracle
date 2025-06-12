@@ -1,7 +1,14 @@
 services:
+  # Service Quality Oracle container
   service-quality-oracle:
+
+    # Build the image from the Dockerfile in the current directory
     build: .
+
+    # Set the container name
     container_name: service-quality-oracle
+
+    # Set the image name
     image: service-quality-oracle:latest
 
     volumes:
@@ -16,9 +23,7 @@ services:
       - ./credentials.json:/app/credentials.json:ro
 
     environment:
-      - PYTHONPATH=/app
       - RUN_ON_STARTUP=true
-      - TZ=UTC
       
       # Setup enviroment variables
       # Environment variables go into process memory for this specific container only
@@ -45,8 +50,10 @@ services:
         reservations:
           memory: 512M
 
+    # Restart policy
     restart: unless-stopped
 
+    # Healthcheck to ensure the container is running
     healthcheck:
       test: ["CMD", "python", "-c", "import os, time; assert os.path.exists('/app/healthcheck') and time.time() - os.path.getmtime('/app/healthcheck') < 3600, 'Healthcheck failed'"]
       interval: 5m
@@ -54,6 +61,7 @@ services:
       retries: 3
       start_period: 1m
 
+    # Prevent log files from growing indefinitely and consuming disk space
     logging:
       driver: "json-file"
       options:

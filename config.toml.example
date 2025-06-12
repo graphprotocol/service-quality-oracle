@@ -6,9 +6,10 @@
 # =============================================================================
 
 [bigquery]
-BIGQUERY_LOCATION_ID = ""
-BIGQUERY_PROJECT_ID = ""
-BIGQUERY_DATASET_ID = ""
+BIGQUERY_LOCATION_ID = "US"
+BIGQUERY_PROJECT_ID = "graph-mainnet"
+BIGQUERY_DATASET_ID = "internal_metrics"
+BIGQUERY_TABLE_ID = "metrics_indexer_attempts"
 
 [blockchain]
 BLOCKCHAIN_CONTRACT_ADDRESS = ""
@@ -20,6 +21,8 @@ BLOCKCHAIN_RPC_URLS = [
     "",
     ""
 ]
+BLOCK_EXPLORER_URL = "https://sepolia.arbiscan.io"
+TX_TIMEOUT_SECONDS = "30"
 
 [scheduling]
 SCHEDULED_RUN_TIME = "10:00"
@@ -31,6 +34,13 @@ SUBGRAPH_URL_PRODUCTION = ""
 [processing]
 BATCH_SIZE = 125
 MAX_AGE_BEFORE_DELETION = 120
+BIGQUERY_ANALYSIS_PERIOD_DAYS = "28"
+
+[eligibility_criteria]
+MIN_ONLINE_DAYS = "5"
+MIN_SUBGRAPHS = "10"
+MAX_LATENCY_MS = "5000"
+MAX_BLOCKS_BEHIND = "50000"
 
 # =============================================================================
 # SENSITIVE CONFIGURATION

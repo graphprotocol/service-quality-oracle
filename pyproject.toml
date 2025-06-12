@@ -12,6 +12,13 @@ target-version = "py39"
 fix = true
 fix-only = false
 
+[tool.ruff.format]
+# Format SQL code in strings/docstrings
+docstring-code-format = false
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
 [tool.ruff.lint]
 # Enable rules including isort (I) for import sorting and additional fixes
 select = ["E", "W", "F", "I"]
@@ -34,7 +41,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 [tool.ruff.lint.per-file-ignores]
 # Ignore E402 (import not at top) in scripts and specific modules
 "scripts/test_*.py" = ["E402"]
-"src/models/issuance_eligibility_oracle_core.py" = ["E402"]
+"src/models/service_quality_oracle.py" = ["E402"]
 
 # Use unsafe fixes to address typing and other modernization issues
 [tool.ruff.lint.isort]
@@ -43,12 +50,6 @@ known-first-party = ["src"]
 [tool.ruff.lint.mccabe]
 # Unlike Flake8, default to a complexity level of 10.
 max-complexity = 10
-
-[tool.ruff.format]
-# Format SQL code in strings/docstrings
-docstring-code-format = true
-quote-style = "double"
-indent-style = "space"
 
 [tool.mypy]
 ignore_missing_imports = true
