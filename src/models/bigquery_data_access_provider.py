@@ -3,7 +3,6 @@ A provider for accessing Google BigQuery data for the Service Quality Oracle.
 """
 
 import logging
-import socket
 from datetime import date
 from typing import cast
 
@@ -40,7 +39,7 @@ class BigQueryProvider:
         self.max_blocks_behind = max_blocks_behind
 
 
-    @retry_with_backoff(max_attempts=10, min_wait=1, max_wait=60, exceptions=(ConnectionError, socket.timeout))
+    @retry_with_backoff(max_attempts=10, min_wait=1, max_wait=60)
     def _read_gbq_dataframe(self, query: str) -> DataFrame:
         """
         Execute a read query on Google BigQuery and return the results as a pandas DataFrame.
