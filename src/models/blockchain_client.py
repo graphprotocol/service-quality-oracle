@@ -142,9 +142,7 @@ class BlockchainClient:
         logger.warning(warning_message)
 
         if self.slack_notifier:
-            self.slack_notifier.send_info_notification(
-                message=warning_message, title="RPC Provider Rotation"
-            )
+            self.slack_notifier.send_info_notification(message=warning_message, title="RPC Provider Rotation")
 
         self._connect_to_rpc()
 

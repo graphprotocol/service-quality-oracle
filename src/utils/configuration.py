@@ -141,13 +141,19 @@ class ConfigLoader:
             "MIN_ONLINE_DAYS": to_int(substituted_config.get("eligibility_criteria", {}).get("MIN_ONLINE_DAYS")),
             "MIN_SUBGRAPHS": to_int(substituted_config.get("eligibility_criteria", {}).get("MIN_SUBGRAPHS")),
             "MAX_LATENCY_MS": to_int(substituted_config.get("eligibility_criteria", {}).get("MAX_LATENCY_MS")),
-            "MAX_BLOCKS_BEHIND": to_int(substituted_config.get("eligibility_criteria", {}).get("MAX_BLOCKS_BEHIND")),
+            "MAX_BLOCKS_BEHIND": to_int(
+                substituted_config.get("eligibility_criteria", {}).get("MAX_BLOCKS_BEHIND")
+            ),
 
             # Blockchain settings
-            "BLOCKCHAIN_CONTRACT_ADDRESS": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CONTRACT_ADDRESS"),
+            "BLOCKCHAIN_CONTRACT_ADDRESS": substituted_config.get("blockchain", {}).get(
+                "BLOCKCHAIN_CONTRACT_ADDRESS"
+            ),
             "BLOCKCHAIN_FUNCTION_NAME": substituted_config.get("blockchain", {}).get("BLOCKCHAIN_FUNCTION_NAME"),
             "BLOCKCHAIN_CHAIN_ID": to_int(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_CHAIN_ID")),
-            "BLOCKCHAIN_RPC_URLS": self._parse_rpc_urls(substituted_config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS")),
+            "BLOCKCHAIN_RPC_URLS": self._parse_rpc_urls(
+                substituted_config.get("blockchain", {}).get("BLOCKCHAIN_RPC_URLS")
+            ),
             "BLOCK_EXPLORER_URL": substituted_config.get("blockchain", {}).get("BLOCK_EXPLORER_URL"),
             "TX_TIMEOUT_SECONDS": to_int(substituted_config.get("blockchain", {}).get("TX_TIMEOUT_SECONDS")),
 
@@ -155,16 +161,24 @@ class ConfigLoader:
             "SCHEDULED_RUN_TIME": substituted_config.get("scheduling", {}).get("SCHEDULED_RUN_TIME"),
 
             # Subgraph URLs
-            "SUBGRAPH_URL_PRE_PRODUCTION": substituted_config.get("subgraph", {}).get("SUBGRAPH_URL_PRE_PRODUCTION"),
+            "SUBGRAPH_URL_PRE_PRODUCTION": substituted_config.get("subgraph", {}).get(
+                "SUBGRAPH_URL_PRE_PRODUCTION"
+            ),
             "SUBGRAPH_URL_PRODUCTION": substituted_config.get("subgraph", {}).get("SUBGRAPH_URL_PRODUCTION"),
 
             # Processing settings
             "BATCH_SIZE": to_int(substituted_config.get("processing", {}).get("BATCH_SIZE")),
-            "MAX_AGE_BEFORE_DELETION": to_int(substituted_config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION")),
-            "BIGQUERY_ANALYSIS_PERIOD_DAYS": to_int(substituted_config.get("processing", {}).get("BIGQUERY_ANALYSIS_PERIOD_DAYS")),
+            "MAX_AGE_BEFORE_DELETION": to_int(
+                substituted_config.get("processing", {}).get("MAX_AGE_BEFORE_DELETION")
+            ),
+            "BIGQUERY_ANALYSIS_PERIOD_DAYS": to_int(
+                substituted_config.get("processing", {}).get("BIGQUERY_ANALYSIS_PERIOD_DAYS")
+            ),
 
             # Secrets
-            "GOOGLE_APPLICATION_CREDENTIALS": substituted_config.get("secrets", {}).get("GOOGLE_APPLICATION_CREDENTIALS"),
+            "GOOGLE_APPLICATION_CREDENTIALS": substituted_config.get("secrets", {}).get(
+                "GOOGLE_APPLICATION_CREDENTIALS"
+            ),
             "PRIVATE_KEY": substituted_config.get("secrets", {}).get("BLOCKCHAIN_PRIVATE_KEY"),
             "STUDIO_API_KEY": substituted_config.get("secrets", {}).get("STUDIO_API_KEY"),
             "STUDIO_DEPLOY_KEY": substituted_config.get("secrets", {}).get("STUDIO_DEPLOY_KEY"),
@@ -255,7 +269,8 @@ def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
     missing = [field for field in required if not config.get(field)]
     if missing:
         raise ConfigurationError(
-            f"Missing required configuration fields in config.toml or environment variables: {', '.join(sorted(missing))}"
+            "Missing required configuration fields in config.toml or environment variables:",
+            f"{', '.join(sorted(missing))}",
         )
 
     # Validate specific field formats
