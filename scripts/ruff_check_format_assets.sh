@@ -28,7 +28,7 @@ find src tests scripts -name "*.py" -print0 | xargs -0 python3 scripts/custom_fo
 
 # Show remaining issues (mainly line length issues that need manual intervention)
 echo -e "\n\nRemaining issues that need manual attention:"
-ruff check src tests scripts --select E501 --statistics
+ruff check src tests scripts --select E501
 
 echo "Linting/formatting complete! All auto-fixable issues have been resolved."
 echo "Manually review and fix any remaining line length issues if desired."

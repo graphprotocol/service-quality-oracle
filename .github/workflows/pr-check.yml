@@ -18,15 +18,16 @@ jobs:
           fetch-depth: 0
 
       - name: Validate PR requirements
+        env:
+          PR_TITLE: "${{ github.event.pull_request.title }}"
+          PR_BODY: "${{ github.event.pull_request.body }}"
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          if [[ ${#PR_TITLE} -lt 1 ]]; then
+          if [[ -z "$PR_TITLE" ]]; then
             echo "PR title cannot be empty"
             exit 1
           fi
           
-          PR_BODY="${{ github.event.pull_request.body }}"
-          if [[ ${#PR_BODY} -lt 1 ]]; then
+          if [[ -z "$PR_BODY" ]]; then
             echo "PR description cannot be empty"
             exit 1
           fi
