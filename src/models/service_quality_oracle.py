@@ -21,7 +21,10 @@ sys.path.insert(0, str(project_root_path))
 from src.models.bigquery_provider import BigQueryProvider
 from src.models.blockchain_client import BlockchainClient
 from src.models.eligibility_pipeline import EligibilityPipeline
-from src.utils.configuration import credential_manager, load_config
+from src.utils.configuration import (
+    credential_manager,
+    load_config,
+)
 from src.utils.slack_notifier import create_slack_notifier
 
 # Set up basic logging
@@ -138,7 +141,10 @@ def main(run_date_override: date = None):
                     error_message=str(e), stage=stage, execution_time=execution_time
                 )
             except Exception as slack_e:
-                logger.error(f"Failed to send Slack failure notification: {slack_e}", exc_info=True)
+                logger.error(
+                    f"Failed to send Slack failure notification: {slack_e}",
+                    exc_info=True,
+                )
 
         sys.exit(1)
 
