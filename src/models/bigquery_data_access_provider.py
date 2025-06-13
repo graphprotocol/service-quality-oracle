@@ -186,5 +186,6 @@ class BigQueryProvider:
         """
         # Construct the query
         query = self._get_indexer_eligibility_query(start_date, end_date)
+
         # Return the results df
         return self._read_gbq_dataframe(query)
