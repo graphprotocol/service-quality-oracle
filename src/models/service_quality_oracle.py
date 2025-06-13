@@ -18,7 +18,7 @@ project_root_path = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(project_root_path))
 
 # Import data access utilities with absolute import
-from src.models.bigquery_data_access_provider import BigQueryProvider
+from src.models.bigquery_provider import BigQueryProvider
 from src.models.blockchain_client import BlockchainClient
 from src.models.eligibility_pipeline import EligibilityPipeline
 from src.utils.configuration import credential_manager, load_config

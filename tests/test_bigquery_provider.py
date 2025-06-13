@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from src.models.bigquery_data_access_provider import BigQueryProvider
+from src.models.bigquery_provider import BigQueryProvider
 
 # Mock configuration values
 MOCK_PROJECT = "test-project"
@@ -23,7 +23,7 @@ MOCK_MAX_BLOCKS_BEHIND = 50000
 @pytest.fixture
 def mock_bpd():
     """Fixture to mock the bigframes.pandas module."""
-    with patch("src.models.bigquery_data_access_provider.bpd") as mock_bpd_module:
+    with patch("src.models.bigquery_provider.bpd") as mock_bpd_module:
         # We need to mock the nested attribute access `bpd.options.bigquery`
         # and then allow attributes to be set on it.
         mock_options = MagicMock()
