@@ -16,3 +16,4 @@ contracts/contract.abi.json
 
 # Ignore Ruff
 .ruff_cache/
+/tests/__pycache__

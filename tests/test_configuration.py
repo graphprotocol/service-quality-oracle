@@ -104,8 +104,34 @@ def test_validate_config_invalid_time_format():
     Tests that _validate_config raises a ConfigurationError for an invalid time format.
     """
     # Create a full dummy config, but with one invalid field
-    config = {f: "dummy" for f in _validate_config.__closure__[0].cell_contents}
-    config["SCHEDULED_RUN_TIME"] = "invalid-time"
+    config = {
+        "BIGQUERY_LOCATION_ID": "us-central1",
+        "BIGQUERY_PROJECT_ID": "test-project",
+        "BIGQUERY_DATASET_ID": "test-dataset",
+        "BIGQUERY_TABLE_ID": "test-table",
+        "MIN_ONLINE_DAYS": 5,
+        "MIN_SUBGRAPHS": 10,
+        "MAX_LATENCY_MS": 5000,
+        "MAX_BLOCKS_BEHIND": 100,
+        "BLOCKCHAIN_CONTRACT_ADDRESS": "0x1234",
+        "BLOCKCHAIN_FUNCTION_NAME": "allow",
+        "BLOCKCHAIN_CHAIN_ID": 1,
+        "BLOCKCHAIN_RPC_URLS": ["http://test.com"],
+        "SCHEDULED_RUN_TIME": "invalid-time",
+        "PRIVATE_KEY": "0x123",
+        "BATCH_SIZE": 100,
+        "MAX_AGE_BEFORE_DELETION": 90,
+        "BIGQUERY_ANALYSIS_PERIOD_DAYS": 28,
+        "BLOCK_EXPLORER_URL": "http://etherscan.io",
+        "TX_TIMEOUT_SECONDS": 180,
+        "SUBGRAPH_URL_PRE_PRODUCTION": "http://pre-prod.com",
+        "SUBGRAPH_URL_PRODUCTION": "http://prod.com",
+        "STUDIO_API_KEY": "key",
+        "STUDIO_DEPLOY_KEY": "key",
+        "SLACK_WEBHOOK_URL": "http://slack.com",
+        "ETHERSCAN_API_KEY": "key",
+        "ARBITRUM_API_KEY": "key",
+    }
 
     with pytest.raises(ConfigurationError, match="Invalid SCHEDULED_RUN_TIME"):
         _validate_config(config)
@@ -132,14 +158,14 @@ def test_get_missing_env_vars(temp_config_file: str):
 def mock_google_auth():
     """Mocks the google.auth and dependent libraries."""
     with (
-        patch("src.utils.configuration.google.auth") as mock_auth,
-        patch("src.utils.configuration.google.oauth2.credentials") as mock_creds,
-        patch("src.utils.configuration.google.oauth2.service_account") as mock_service_account,
+        patch("google.oauth2.service_account.Credentials") as mock_service_account,
+        patch("google.oauth2.credentials.Credentials") as mock_creds,
+        patch("google.auth.default", return_value=(None, None)) as mock_auth_default,
     ):
         yield {
-            "auth": mock_auth,
-            "creds": mock_creds,
             "service_account": mock_service_account,
+            "creds": mock_creds,
+            "auth_default": mock_auth_default,
         }
 
 
@@ -153,7 +179,7 @@ def test_credential_manager_service_account_json(mock_env, mock_google_auth):
     CredentialManager().setup_google_credentials()
 
     # 3. Assertions
-    mock_google_auth["service_account"].Credentials.from_service_account_info.assert_called_once()
+    mock_google_auth["service_account"].from_service_account_info.assert_called_once()
 
 
 def test_credential_manager_authorized_user_json(mock_env, mock_google_auth):
@@ -166,7 +192,7 @@ def test_credential_manager_authorized_user_json(mock_env, mock_google_auth):
     CredentialManager().setup_google_credentials()
 
     # 3. Assertions
-    mock_google_auth["creds"].Credentials.assert_called_once()
+    mock_google_auth["creds"].assert_called_once()
 
 
 def test_credential_manager_invalid_path(mock_env):

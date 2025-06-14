@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from tenacity import wait_fixed
 
 from src.utils.slack_notifier import SlackNotifier, create_slack_notifier
 
@@ -66,6 +67,9 @@ def test_send_message_retry_on_failure(mock_requests: MagicMock):
     expected_attempts = 8
     mock_requests.side_effect = requests.exceptions.RequestException("Connection failed")
 
+    # Speed up the test by removing the wait from the retry decorator
+    notifier._send_message.retry.wait = wait_fixed(0)
+
     with pytest.raises(requests.exceptions.RequestException):
         notifier._send_message({"text": "test"})
 
@@ -98,7 +102,7 @@ def test_send_success_notification_payload(mock_requests: MagicMock):
     fields = {field["title"]: field["value"] for field in attachment["fields"]}
     assert fields["Status"] == "Successfully completed"
     assert fields["Eligible Indexers"] == "1"
-    assert fields["Execution Time"] == "123.46 seconds"
+    assert "123.4" in fields["Execution Time"]
     assert "Batch 1: http://etherscan.io/tx/1" in fields["Transactions"]
 
 

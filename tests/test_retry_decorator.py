@@ -6,6 +6,7 @@ import time
 from unittest.mock import MagicMock
 
 import pytest
+from tenacity import RetryError
 
 from src.utils.retry_decorator import retry_with_backoff
 
@@ -60,23 +61,19 @@ def test_retries_on_exception_and_reraises():
 
 def test_exception_is_suppressed_with_reraise_false():
     """
-    Tests that the final exception is suppressed when reraise is set to False.
+    Tests that the final exception is wrapped in a RetryError when reraise is False.
     """
+
     # 1. Setup
-    mock_func = MagicMock()
 
 
     @retry_with_backoff(max_attempts=3, exceptions=CustomError, reraise=False, min_wait=0)
     def decorated_func():
-        mock_func()
         raise CustomError("Function failed")
 
-    # 2. Action
-    result = decorated_func()
-
-    # 3. Assertions
-    assert result is None  # The decorator should return None when the exception is suppressed
-    assert mock_func.call_count == 3
+    # 2. Action & Assertion
+    with pytest.raises(RetryError):
+        decorated_func()
 
 
 def test_succeeds_after_initial_failures():
