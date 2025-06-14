@@ -8,7 +8,8 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from src.models import service_quality_oracle
+# The main function will be imported inside each test after patches are applied
+import src.models.service_quality_oracle
 
 MOCK_CONFIG = {
     "SLACK_WEBHOOK_URL": "http://fake.slack.com",
@@ -30,6 +31,13 @@ MOCK_CONFIG = {
     "BLOCKCHAIN_CHAIN_ID": 1,
     "BLOCKCHAIN_FUNCTION_NAME": "allow",
     "BATCH_SIZE": 100,
+    "SCHEDULED_RUN_TIME": "10:00",
+    "SUBGRAPH_URL_PRE_PRODUCTION": "http://fake.url",
+    "SUBGRAPH_URL_PRODUCTION": "http://fake.url",
+    "STUDIO_API_KEY": "fake-api-key",
+    "STUDIO_DEPLOY_KEY": "fake-deploy-key",
+    "ETHERSCAN_API_KEY": "fake-etherscan-key",
+    "ARBITRUM_API_KEY": "fake-arbitrum-key",
 }
 
 
@@ -43,7 +51,7 @@ def mock_dependencies():
         patch("src.models.service_quality_oracle.BigQueryProvider") as mock_bq_provider,
         patch("src.models.service_quality_oracle.EligibilityPipeline") as mock_pipeline,
         patch("src.models.service_quality_oracle.BlockchainClient") as mock_blockchain_client,
-        patch("src.models.service_quality_oracle.sys.exit") as mock_exit,
+        patch("sys.exit") as mock_exit,
     ):
         # Configure the return values of mocked instances
         mock_bq_provider.return_value.fetch_indexer_issuance_eligibility_data.return_value = pd.DataFrame()
@@ -73,7 +81,7 @@ def test_main_successful_run(mock_dependencies: dict):
     ensuring each component is called correctly and a success notification is sent.
     """
     # 1. Action
-    service_quality_oracle.main()
+    src.models.service_quality_oracle.main()
 
     # 2. Assertions
     # Initialization
@@ -137,12 +145,12 @@ def test_main_failure_at_stage(mock_dependencies: dict, failure_stage: str, expe
         )
 
     # 2. Action
-    service_quality_oracle.main()
+    src.models.service_quality_oracle.main()
 
     # 3. Assertions
     mock_dependencies["slack_notifier"].send_failure_notification.assert_called_once()
     # Check that the stage name in the notification is correct
-    call_args, call_kwargs = mock_dependencies["slack_notifier"].send_failure_notification.call_args
+    call_kwargs = mock_dependencies["slack_notifier"].send_failure_notification.call_args.kwargs
     assert call_kwargs["stage"] == expected_stage_name
 
     mock_dependencies["exit"].assert_called_once_with(1)
@@ -158,15 +166,15 @@ def test_main_with_date_override(mock_dependencies: dict):
     expected_start_date = override_date - pd.Timedelta(days=MOCK_CONFIG["BIGQUERY_ANALYSIS_PERIOD_DAYS"])
 
     # 2. Action
-    service_quality_oracle.main(run_date_override=override_date)
+    src.models.service_quality_oracle.main(run_date_override=override_date)
 
     # 3. Assertions
     # Check that the BQ provider was called with the correct, overridden date range
-    call_args, call_kwargs = mock_dependencies[
+    call_args = mock_dependencies[
         "bq_provider_instance"
     ].fetch_indexer_issuance_eligibility_data.call_args
-    assert call_kwargs["start_date"] == expected_start_date
-    assert call_kwargs["end_date"] == override_date
+    assert call_args[0][0] == expected_start_date
+    assert call_args[0][1] == override_date
 
 
 def test_main_with_no_eligible_indexers(mock_dependencies: dict):
@@ -179,7 +187,7 @@ def test_main_with_no_eligible_indexers(mock_dependencies: dict):
     mock_dependencies["pipeline_instance"].process.return_value = ([], ["0x1", "0x2"])
 
     # 2. Action
-    service_quality_oracle.main()
+    src.models.service_quality_oracle.main()
 
     # 3. Assertions
     # Check that the blockchain client was still called, but with an empty list
