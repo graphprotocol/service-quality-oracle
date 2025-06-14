@@ -190,6 +190,11 @@ class Scheduler:
 
         except Exception as e:
             logger.error(f"Failed to initialize scheduler: {e}", exc_info=True)
+            if not self.slack_notifier:
+                webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
+                if webhook_url:
+                    self.slack_notifier = create_slack_notifier(webhook_url)
+
             if self.slack_notifier:
                 self.slack_notifier.send_failure_notification(
                     error_message=str(e), stage="Scheduler Initialization", execution_time=0

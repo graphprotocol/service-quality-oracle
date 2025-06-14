@@ -323,7 +323,7 @@ class BlockchainClient:
             latest_block_data = self._execute_rpc_call(self.w3.eth.get_block, "latest")
             latest_block = cast(BlockData, latest_block_data)
             base_fee_hex = latest_block["baseFeePerGas"]
-            base_fee = int(base_fee_hex)
+            base_fee = int(base_fee_hex) if isinstance(base_fee_hex, int) else int(str(base_fee_hex), 16)
             logger.info(f"Latest block base fee: {base_fee/1e9:.2f} gwei")
 
         # If the base fee cannot be retrieved, use a fallback value

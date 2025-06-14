@@ -13,15 +13,14 @@ import time
 from datetime import date, timedelta
 from pathlib import Path
 
-# Add project root to path
-project_root_path = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(project_root_path))
-
 # Import data access utilities with absolute import
-from src.models.bigquery_data_access_provider import BigQueryProvider
+from src.models.bigquery_provider import BigQueryProvider
 from src.models.blockchain_client import BlockchainClient
 from src.models.eligibility_pipeline import EligibilityPipeline
-from src.utils.configuration import credential_manager, load_config
+from src.utils.configuration import (
+    credential_manager,
+    load_config,
+)
 from src.utils.slack_notifier import create_slack_notifier
 
 # Set up basic logging
@@ -44,6 +43,7 @@ def main(run_date_override: date = None):
     start_time = time.time()
     slack_notifier = None
     stage = "Initialization"
+    project_root_path = Path(__file__).resolve().parents[2]
 
     try:
         # Configuration and credentials
@@ -138,7 +138,10 @@ def main(run_date_override: date = None):
                     error_message=str(e), stage=stage, execution_time=execution_time
                 )
             except Exception as slack_e:
-                logger.error(f"Failed to send Slack failure notification: {slack_e}", exc_info=True)
+                logger.error(
+                    f"Failed to send Slack failure notification: {slack_e}",
+                    exc_info=True,
+                )
 
         sys.exit(1)
 
