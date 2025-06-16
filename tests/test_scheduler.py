@@ -12,7 +12,6 @@ from tenacity import wait_fixed
 
 # Mocking at the global level is removed to prevent test pollution
 # sys.modules["src.models.service_quality_oracle"] = MagicMock()
-
 # The Scheduler will be imported within tests after mocks are set up
 # from src.models.scheduler import Scheduler
 from src.utils.configuration import ConfigurationError
@@ -243,6 +242,43 @@ def test_check_missed_runs_does_nothing_if_recent(scheduler_no_init: "Scheduler"
         # 3. Assertions
         mock_get_last_run.assert_called_once()
         scheduler.run_oracle.assert_not_called()
+
+
+def test_check_missed_runs_sends_slack_notification(scheduler_no_init: "Scheduler"):
+    """
+    Tests that a Slack notification is sent when missed runs are detected.
+    """
+    # 1. Setup
+    scheduler = scheduler_no_init
+    two_days_ago = datetime.now().date() - timedelta(days=2)
+    scheduler.get_last_run_date = MagicMock(return_value=two_days_ago)
+    scheduler.run_oracle = MagicMock()  # Mock the main run function
+    scheduler.slack_notifier.send_info_notification.reset_mock()
+
+    # 2. Action
+    scheduler.check_missed_runs()
+
+    # 3. Assertions
+    scheduler.slack_notifier.send_info_notification.assert_called_once()
+    call_kwargs = scheduler.slack_notifier.send_info_notification.call_args.kwargs
+    assert "Missed Runs Detected" in call_kwargs["title"]
+    assert "Detected 1 missed oracle runs" in call_kwargs["message"]
+
+
+def test_get_last_run_date_handles_corrupted_file(scheduler: "Scheduler", mock_dependencies: dict):
+    """
+    Tests that get_last_run_date returns None if the file contains an invalid date string.
+    """
+    # 1. Setup
+    mock_dependencies["os"].path.exists.return_value = True
+    # Simulate a file with corrupted content
+    mock_dependencies["open"].return_value.read.return_value = "not-a-date"
+
+    # 2. Action
+    last_run = scheduler.get_last_run_date()
+
+    # 3. Assertions
+    assert last_run is None
 
 
 def test_run_oracle_success(scheduler: "Scheduler", mock_dependencies: dict):

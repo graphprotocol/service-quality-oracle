@@ -7,10 +7,12 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
+from requests.exceptions import ConnectionError
 
 from src.models.bigquery_provider import BigQueryProvider
+from src.utils.retry_decorator import DEFAULT_RETRY_EXCEPTIONS
 
-# Mock configuration values
+# --- Test Constants ---
 MOCK_PROJECT = "test-project"
 MOCK_LOCATION = "test-location"
 MOCK_TABLE_NAME = "test.dataset.table"
@@ -18,14 +20,28 @@ MOCK_MIN_ONLINE_DAYS = 5
 MOCK_MIN_SUBGRAPHS = 10
 MOCK_MAX_LATENCY_MS = 5000
 MOCK_MAX_BLOCKS_BEHIND = 50000
+MOCK_QUERY = "SELECT * FROM mock_table;"
+
+# All exceptions that should trigger a retry
+RETRYABLE_EXCEPTIONS = DEFAULT_RETRY_EXCEPTIONS
+
+# This should match the `max_attempts` in the `@retry_with_backoff` decorator
+# in the source file `src/models/bigquery_provider.py`.
+MAX_RETRY_ATTEMPTS = 10
+
+# Mock data for tests
+MOCK_DATAFRAME = pd.DataFrame({"col1": [1, 2]})
+MOCK_EMPTY_DATAFRAME = pd.DataFrame()
+START_DATE = date(2025, 1, 1)
+END_DATE = date(2025, 1, 28)
+SINGLE_DATE = date(2025, 2, 1)
 
 
 @pytest.fixture
-def mock_bpd():
+def mock_bpd() -> MagicMock:
     """Fixture to mock the bigframes.pandas module."""
     with patch("src.models.bigquery_provider.bpd") as mock_bpd_module:
-        # We need to mock the nested attribute access `bpd.options.bigquery`
-        # and then allow attributes to be set on it.
+        # Mock nested attribute access `bpd.options.bigquery` and allow attributes to be set.
         mock_options = MagicMock()
         mock_bigquery = MagicMock()
         mock_options.bigquery = mock_bigquery
@@ -47,135 +63,220 @@ def provider(mock_bpd: MagicMock) -> BigQueryProvider:
     )
 
 
-# 1. Test Initialization
+class TestInitialization:
+    """Tests for the __init__ method."""
 
 
-def test_initialization(provider: BigQueryProvider, mock_bpd: MagicMock):
-    """
-    Tests that BigQueryProvider initializes correctly, setting BigQuery options and instance variables.
-    """
-    # Assertions
-    # Check that BigQuery options were configured
-    assert mock_bpd.options.bigquery.project == MOCK_PROJECT
-    assert mock_bpd.options.bigquery.location == MOCK_LOCATION
+    def test_initialization_sets_bigquery_options_and_instance_vars(
+        self, provider: BigQueryProvider, mock_bpd: MagicMock
+    ):
+        """
+        Tests that BigQueryProvider initializes correctly, setting BigQuery options and instance variables.
+        """
+        # Assertions for BigQuery options
+        mock_bpd.options.bigquery.project = MOCK_PROJECT
+        mock_bpd.options.bigquery.location = MOCK_LOCATION
 
-    # Check that instance variables are set correctly
-    assert provider.table_name == MOCK_TABLE_NAME
-    assert provider.min_online_days == MOCK_MIN_ONLINE_DAYS
-    assert provider.min_subgraphs == MOCK_MIN_SUBGRAPHS
-    assert provider.max_latency_ms == MOCK_MAX_LATENCY_MS
-    assert provider.max_blocks_behind == MOCK_MAX_BLOCKS_BEHIND
-
-
-# 2. Test Query Construction
+        # Assertions for instance variables
+        assert provider.table_name == MOCK_TABLE_NAME
+        assert provider.min_online_days == MOCK_MIN_ONLINE_DAYS
+        assert provider.min_subgraphs == MOCK_MIN_SUBGRAPHS
+        assert provider.max_latency_ms == MOCK_MAX_LATENCY_MS
+        assert provider.max_blocks_behind == MOCK_MAX_BLOCKS_BEHIND
 
 
-def test_get_indexer_eligibility_query_constructs_correctly(provider: BigQueryProvider):
-    """
-    Tests that _get_indexer_eligibility_query constructs a query string that
-    contains all the dynamic configuration parameters.
-    """
-    # 1. Action
-    start_date_val = date(2025, 1, 1)
-    end_date_val = date(2025, 1, 28)
-    query = provider._get_indexer_eligibility_query(start_date=start_date_val, end_date=end_date_val)
-
-    # 2. Assertions
-    assert isinstance(query, str)
-    assert MOCK_TABLE_NAME in query
-    assert str(MOCK_MAX_LATENCY_MS) in query
-    assert str(MOCK_MAX_BLOCKS_BEHIND) in query
-    assert str(MOCK_MIN_SUBGRAPHS) in query
-    assert str(MOCK_MIN_ONLINE_DAYS) in query
-    assert start_date_val.strftime("%Y-%m-%d") in query
-    assert end_date_val.strftime("%Y-%m-%d") in query
+class TestGetIndexerEligibilityQuery:
+    """Tests for the _get_indexer_eligibility_query method."""
 
 
-# 3. Test Data Reading
+    def test_get_indexer_eligibility_query_matches_snapshot(self, provider: BigQueryProvider, snapshot):
+        """
+        Tests that the generated SQL query matches the stored snapshot,
+        preventing unintended changes to the query logic.
+        """
+        query = provider._get_indexer_eligibility_query(start_date=START_DATE, end_date=END_DATE)
+        snapshot.assert_match(query, "indexer_eligibility_query.sql")
 
 
-def test_read_gbq_dataframe_success(provider: BigQueryProvider, mock_bpd: MagicMock):
-    """
-    Tests the success case for _read_gbq_dataframe, ensuring it returns a DataFrame.
-    """
-    # 1. Setup
-    mock_df = pd.DataFrame({"col1": [1, 2]})
-
-    # The call chain is bpd.read_gbq(query).to_pandas()
-    mock_bpd.read_gbq.return_value.to_pandas.return_value = mock_df
-
-    # 2. Action
-    result_df = provider._read_gbq_dataframe("SELECT * FROM table")
-
-    # 3. Assertions
-    mock_bpd.read_gbq.assert_called_once_with("SELECT * FROM table")
-    mock_bpd.read_gbq.return_value.to_pandas.assert_called_once()
-    pd.testing.assert_frame_equal(result_df, mock_df)
-    assert "col1" in result_df.columns
+    def test_get_indexer_eligibility_query_with_single_day_range(self, provider: BigQueryProvider):
+        """
+        Tests that the query is constructed correctly when start and end dates are the same,
+        covering an edge case for a single-day analysis period.
+        """
+        query = provider._get_indexer_eligibility_query(start_date=SINGLE_DATE, end_date=SINGLE_DATE)
+        assert isinstance(query, str)
+        assert f"BETWEEN '{SINGLE_DATE.strftime('%Y-%m-%d')}' AND '{SINGLE_DATE.strftime('%Y-%m-%d')}'" in query
 
 
-def test_read_gbq_dataframe_retry_and_fail():
-    """
-    Tests that _read_gbq_dataframe retries on connection errors and eventually fails.
-    """
-    # 1. Setup
-    error_to_raise = ConnectionError("Test connection error")
-    mock_func = MagicMock(side_effect=error_to_raise)
+    def test_get_indexer_eligibility_query_with_invalid_date_range(self, provider: BigQueryProvider):
+        """
+        Tests that the query is constructed correctly even with a logically invalid
+        date range (start > end), which should result in an empty set from BigQuery
+        without raising an error in our code.
+        """
+        invalid_start_date = date(2025, 1, 28)
+        invalid_end_date = date(2025, 1, 1)
+        query = provider._get_indexer_eligibility_query(start_date=invalid_start_date, end_date=invalid_end_date)
+        assert isinstance(query, str)
+        assert invalid_start_date.strftime("%Y-%m-%d") in query
+        assert invalid_end_date.strftime("%Y-%m-%d") in query
 
-    # Directly mock the tenacity retry decorator to just call the function
-    with patch("tenacity.retry", side_effect=lambda *args, **kwargs: lambda f: mock_func):
-        with patch("src.models.bigquery_provider.bpd") as mock_bpd:
-            mock_bpd.read_gbq.side_effect = error_to_raise
 
-            provider = BigQueryProvider(
-                project="test-proj",
-                location="us-central1",
-                table_name="test-tbl",
-                min_online_days=5,
-                min_subgraphs=10,
-                max_latency_ms=5000,
-                max_blocks_behind=100,
+@patch("tenacity.nap.sleep", return_value=None)
+class TestReadGbqDataframe:
+    """Tests for the _read_gbq_dataframe method."""
+
+
+    def test_read_gbq_dataframe_success(
+        self, mock_sleep: MagicMock, provider: BigQueryProvider, mock_bpd: MagicMock
+    ):
+        """
+        Tests the success case for _read_gbq_dataframe, ensuring it returns a DataFrame
+        and that the result is converted to pandas.
+        """
+        # Arrange
+        mock_bpd.read_gbq.return_value.to_pandas.return_value = MOCK_DATAFRAME
+
+        # Act
+        result_df = provider._read_gbq_dataframe(MOCK_QUERY)
+
+        # Assert
+        mock_bpd.read_gbq.assert_called_once_with(MOCK_QUERY)
+        mock_bpd.read_gbq.return_value.to_pandas.assert_called_once()
+        pd.testing.assert_frame_equal(result_df, MOCK_DATAFRAME)
+        mock_sleep.assert_not_called()
+
+
+    @pytest.mark.parametrize("exception_to_raise", RETRYABLE_EXCEPTIONS)
+    def test_read_gbq_dataframe_on_retryable_error_succeeds(
+        self, mock_sleep: MagicMock, exception_to_raise: Exception, provider: BigQueryProvider, mock_bpd: MagicMock
+    ):
+        """
+        Tests that _read_gbq_dataframe retries on specified connection errors and eventually succeeds.
+        """
+        # Arrange
+        # Fail twice, then succeed
+        mock_bpd.read_gbq.side_effect = [
+            exception_to_raise("Connection failed: attempt 1"),
+            exception_to_raise("Connection failed: attempt 2"),
+            MagicMock(to_pandas=MagicMock(return_value=MOCK_DATAFRAME)),
+        ]
+
+        # Act
+        result_df = provider._read_gbq_dataframe(MOCK_QUERY)
+
+        # Assert
+        assert mock_bpd.read_gbq.call_count == 3
+        pd.testing.assert_frame_equal(result_df, MOCK_DATAFRAME)
+
+
+    def test_read_gbq_dataframe_on_persistent_error_fails(
+        self, mock_sleep: MagicMock, provider: BigQueryProvider, mock_bpd: MagicMock
+    ):
+        """
+        Tests that _read_gbq_dataframe stops retrying and fails after all attempts are exhausted.
+        """
+        # Arrange
+        error_to_raise = ConnectionError("Persistent connection error")
+        mock_bpd.read_gbq.side_effect = error_to_raise
+
+        # Act & Assert
+        with pytest.raises(ConnectionError):
+            # Patch time.sleep directly as it's used by the tenacity decorator.
+            with patch("time.sleep", return_value=None):
+                provider._read_gbq_dataframe(MOCK_QUERY)
+
+        assert mock_bpd.read_gbq.call_count == MAX_RETRY_ATTEMPTS
+        # The class-level mock_sleep should not be called as our inner patch takes precedence.
+        mock_sleep.assert_not_called()
+
+
+    def test_read_gbq_dataframe_on_non_retryable_error_fails_immediately(
+        self, mock_sleep: MagicMock, provider: BigQueryProvider, mock_bpd: MagicMock
+    ):
+        """
+        Tests that _read_gbq_dataframe does not retry on an unexpected, non-retryable error.
+        """
+        # Arrange
+        error_to_raise = ValueError("This is not a retryable error")
+        mock_bpd.read_gbq.side_effect = error_to_raise
+
+        # Act & Assert
+        with pytest.raises(ValueError):
+            provider._read_gbq_dataframe(MOCK_QUERY)
+
+        # Assert that it was called only once and did not retry
+        mock_bpd.read_gbq.assert_called_once()
+        mock_sleep.assert_not_called()
+
+
+class TestFetchIndexerIssuanceEligibilityData:
+    """Tests for the main fetch_indexer_issuance_eligibility_data method."""
+
+
+    def test_fetch_data_happy_path(self, provider: BigQueryProvider):
+        """
+        Tests the happy path for `fetch_indexer_issuance_eligibility_data`, ensuring it
+        orchestrates calls correctly and returns the final DataFrame.
+        """
+        # Arrange
+        provider._get_indexer_eligibility_query = MagicMock(return_value=MOCK_QUERY)
+        provider._read_gbq_dataframe = MagicMock(return_value=MOCK_DATAFRAME)
+
+        # Act
+        result_df = provider.fetch_indexer_issuance_eligibility_data(
+            start_date=START_DATE,
+            end_date=END_DATE,
+        )
+
+        # Assert
+        provider._get_indexer_eligibility_query.assert_called_once_with(
+            start_date=START_DATE,
+            end_date=END_DATE,
+        )
+        provider._read_gbq_dataframe.assert_called_once_with(MOCK_QUERY)
+        pd.testing.assert_frame_equal(result_df, MOCK_DATAFRAME)
+
+
+    def test_fetch_data_with_empty_result_returns_empty_dataframe(self, provider: BigQueryProvider):
+        """
+        Tests that the method gracefully handles and returns an empty DataFrame from BigQuery.
+        """
+        # Arrange
+        provider._get_indexer_eligibility_query = MagicMock(return_value=MOCK_QUERY)
+        provider._read_gbq_dataframe = MagicMock(return_value=MOCK_EMPTY_DATAFRAME)
+
+        # Act
+        result_df = provider.fetch_indexer_issuance_eligibility_data(
+            start_date=START_DATE,
+            end_date=END_DATE,
+        )
+
+        # Assert
+        provider._get_indexer_eligibility_query.assert_called_once_with(
+            start_date=START_DATE,
+            end_date=END_DATE,
+        )
+        provider._read_gbq_dataframe.assert_called_once_with(MOCK_QUERY)
+        assert result_df.empty
+        pd.testing.assert_frame_equal(result_df, MOCK_EMPTY_DATAFRAME)
+
+
+    def test_fetch_data_on_read_error_propagates_exception(self, provider: BigQueryProvider):
+        """
+        Tests that an exception from `_read_gbq_dataframe` is correctly propagated.
+        """
+        # Arrange
+        error_to_raise = ValueError("Test DB Error")
+        provider._get_indexer_eligibility_query = MagicMock(return_value=MOCK_QUERY)
+        provider._read_gbq_dataframe = MagicMock(side_effect=error_to_raise)
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="Test DB Error"):
+            provider.fetch_indexer_issuance_eligibility_data(
+                start_date=START_DATE,
+                end_date=END_DATE,
             )
 
-            # 2. Action and Assertion
-            with pytest.raises(ConnectionError):
-                # We can't test the retries directly anymore, so we just check for failure
-                provider._read_gbq_dataframe("SELECT * FROM table")
-
-
-# 4. Test Orchestration
-
-
-def test_fetch_indexer_issuance_eligibility_data_orchestration(provider: BigQueryProvider):
-    """
-    Tests that the main `fetch_indexer_issuance_eligibility_data` method correctly
-    orchestrates calls to its internal helper methods.
-    """
-    # 1. Setup
-    start_date_val = date(2025, 1, 1)
-    end_date_val = date(2025, 1, 28)
-    mock_query = "SELECT * FROM mock_table;"
-    mock_df = pd.DataFrame({"eligible": [1]})
-
-    # Mock the internal methods
-    provider._get_indexer_eligibility_query = MagicMock(return_value=mock_query)
-    provider._read_gbq_dataframe = MagicMock(return_value=mock_df)
-
-    # 2. Action
-    result_df = provider.fetch_indexer_issuance_eligibility_data(
-        start_date=start_date_val,
-        end_date=end_date_val,
-    )
-
-    # 3. Assertions
-    # Verify that the query builder was called correctly
-    provider._get_indexer_eligibility_query.assert_called_once_with(
-        start_date_val,
-        end_date_val,
-    )
-
-    # Verify that the data reader was called with the query from the previous step
-    provider._read_gbq_dataframe.assert_called_once_with(mock_query)
-
-    # Verify that the final result is the DataFrame from the reader
-    pd.testing.assert_frame_equal(result_df, mock_df)
+        provider._get_indexer_eligibility_query.assert_called_once_with(start_date=START_DATE, end_date=END_DATE)
+        provider._read_gbq_dataframe.assert_called_once_with(MOCK_QUERY)

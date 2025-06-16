@@ -175,7 +175,7 @@ class EligibilityPipeline:
         # If any required columns are missing, raise an error
         if missing_columns:
             raise ValueError(
-                f"DataFrame missing required columns: {missing_columns}. " f"Found columns: {list(df.columns)}"
+                f"DataFrame missing required columns: {missing_columns}. Found columns: {list(df.columns)}"
             )
 
         # If all required columns are present, return True

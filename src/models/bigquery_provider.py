@@ -185,7 +185,7 @@ class BigQueryProvider:
                     - eligible_for_indexing_rewards: Whether the indexer is eligible for indexing rewards.
         """
         # Construct the query
-        query = self._get_indexer_eligibility_query(start_date, end_date)
+        query = self._get_indexer_eligibility_query(start_date=start_date, end_date=end_date)
 
         # Return the results df
         return self._read_gbq_dataframe(query)

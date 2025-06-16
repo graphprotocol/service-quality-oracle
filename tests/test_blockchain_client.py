@@ -377,7 +377,61 @@ def test_send_signed_transaction_reverted(blockchain_client: BlockchainClient):
         blockchain_client._send_signed_transaction(mock_signed_tx)
 
 
-# 3. Orchestration Tests
+# 3. Orchestration and Edge Case Tests
+
+
+def test_execute_rpc_call_with_failover(blockchain_client: BlockchainClient):
+    """
+    Tests that _execute_rpc_call fails over to the next provider if the first one
+    is unreachable, and sends a Slack notification.
+    """
+    # 1. Setup
+    # Simulate the first provider failing, then the second succeeding.
+    # The inner retry will try 3 times, then the outer failover logic will switch provider.
+    mock_func = MagicMock()
+    mock_func.side_effect = [
+        requests.exceptions.ConnectionError("RPC down 1"),
+        requests.exceptions.ConnectionError("RPC down 2"),
+        requests.exceptions.ConnectionError("RPC down 3"),
+        "Success",
+    ]
+    blockchain_client.slack_notifier.reset_mock()  # Clear prior calls
+
+    # 2. Action
+    # The _execute_rpc_call decorator will handle the retry/failover
+    result = blockchain_client._execute_rpc_call(mock_func)
+
+    # 3. Assertions
+    assert result == "Success"
+    assert mock_func.call_count == 4
+    assert blockchain_client.current_rpc_index == 1  # Should have failed over to the 2nd provider
+
+    # Verify a slack message was sent about the failover
+    blockchain_client.slack_notifier.send_info_notification.assert_called_once()
+    call_kwargs = blockchain_client.slack_notifier.send_info_notification.call_args.kwargs
+    assert "Switching from previous RPC" in call_kwargs["message"]
+
+
+def test_determine_transaction_nonce_replace_handles_errors(blockchain_client: BlockchainClient):
+    """
+    Tests that nonce determination falls back gracefully if checking for pending
+    transactions or nonce gaps fails.
+    """
+    # 1. Setup
+    # Simulate errors when trying to get pending blocks and checking for gaps
+    w3_instance = blockchain_client.mock_w3_instance
+    w3_instance.eth.get_block.side_effect = ValueError("Cannot get pending block")
+    # After all errors, the final fallback is to get the latest transaction count.
+    w3_instance.eth.get_transaction_count.side_effect = [
+        ValueError("Cannot get pending nonce"),
+        ValueError("Cannot get latest nonce"),
+        9,  # This will be the final fallback value
+    ]
+
+    # 2. Action & Assertions
+    # The function should swallow the errors and then raise the final one
+    with pytest.raises(ValueError, match="Cannot get latest nonce"):
+        blockchain_client._determine_transaction_nonce(MOCK_SENDER_ADDRESS, replace=True)
 
 
 def test_send_transaction_to_allow_indexers_orchestration(blockchain_client: BlockchainClient):
@@ -428,6 +482,7 @@ def test_batch_processing_splits_correctly(blockchain_client: BlockchainClient):
     # Assertions
     assert len(tx_hashes) == 3
     assert blockchain_client.send_transaction_to_allow_indexers.call_count == 3
+
     # Check the contents of each call
     assert blockchain_client.send_transaction_to_allow_indexers.call_args_list[0][0][0] == addresses[0:2]
     assert blockchain_client.send_transaction_to_allow_indexers.call_args_list[1][0][0] == addresses[2:4]
@@ -440,6 +495,7 @@ def test_batch_processing_halts_on_failure(blockchain_client: BlockchainClient):
     """
     # Setup
     addresses = [f"0x{i}" * 40 for i in range(5)]
+
     # Simulate failure on the second call
     blockchain_client.send_transaction_to_allow_indexers = MagicMock(
         side_effect=["tx_hash_1", Exception("RPC Error"), "tx_hash_3"]

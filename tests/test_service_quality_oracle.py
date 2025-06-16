@@ -170,9 +170,7 @@ def test_main_with_date_override(mock_dependencies: dict):
 
     # 3. Assertions
     # Check that the BQ provider was called with the correct, overridden date range
-    call_args = mock_dependencies[
-        "bq_provider_instance"
-    ].fetch_indexer_issuance_eligibility_data.call_args
+    call_args = mock_dependencies["bq_provider_instance"].fetch_indexer_issuance_eligibility_data.call_args
     assert call_args[0][0] == expected_start_date
     assert call_args[0][1] == override_date
 

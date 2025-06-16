@@ -215,6 +215,50 @@ def test_credential_manager_invalid_json(mock_env):
         CredentialManager().setup_google_credentials()
 
 
+def test_credential_manager_incomplete_service_account(mock_env):
+    """Tests that a ValueError is raised for incomplete service account JSON."""
+    # 1. Setup - Missing 'private_key'
+    creds_json = '{"type": "service_account", "client_email": "ce", "project_id": "pi"}'
+    mock_env.setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_json)
+
+    # 2. Action & Assertion
+    with pytest.raises(ValueError, match="Incomplete service_account credentials"):
+        CredentialManager().setup_google_credentials()
+
+
+def test_credential_manager_unsupported_type(mock_env):
+    """Tests that a ValueError is raised for an unsupported credential type."""
+    # 1. Setup
+    creds_json = '{"type": "unsupported"}'
+    mock_env.setenv("GOOGLE_APPLICATION_CREDENTIALS", creds_json)
+
+    # 2. Action & Assertion
+    with pytest.raises(ValueError, match="Unsupported credential type"):
+        CredentialManager().setup_google_credentials()
+
+
+def test_get_default_config_path_docker(tmp_path: Path):
+    """Tests that the loader finds the config in the default /app path for Docker."""
+    # 1. Setup
+    # Simulate being in a Docker container where the /app/config.toml exists
+    docker_config_path = tmp_path / "app" / "config.toml"
+    docker_config_path.parent.mkdir()
+    docker_config_path.write_text(MOCK_TOML_CONFIG)
+
+    with patch("pathlib.Path.exists") as mock_exists:
+        # The first check is for the Docker path, so we make it return True
+        mock_exists.return_value = True
+        loader = ConfigLoader()
+        # Overwrite the loader's default path for this test
+        loader.config_path = str(docker_config_path)
+
+        # 2. Action
+        found_path = loader._get_default_config_path()
+
+        # 3. Assertions
+        assert found_path == "/app/config.toml"
+
+
 # 4. Standalone Validator Tests
 
 

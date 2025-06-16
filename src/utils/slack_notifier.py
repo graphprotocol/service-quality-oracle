@@ -129,7 +129,7 @@ class SlackNotifier:
 
         # Add transaction links if provided
         if transaction_links:
-            tx_links = "\n".join([f"Batch {i+1}: {link}" for i, link in enumerate(transaction_links)])
+            tx_links = "\n".join([f"Batch {i + 1}: {link}" for i, link in enumerate(transaction_links)])
             fields.append({"title": "Transactions", "value": tx_links, "short": False})
 
         # Create message payload
@@ -179,7 +179,7 @@ class SlackNotifier:
 
         # Add partial transaction links if any succeeded before failure
         if partial_transaction_links:
-            tx_links = "\n".join([f"Batch {i+1}: {link}" for i, link in enumerate(partial_transaction_links)])
+            tx_links = "\n".join([f"Batch {i + 1}: {link}" for i, link in enumerate(partial_transaction_links)])
             fields.append({"title": "Partial Transactions", "value": tx_links, "short": False})
 
         # Truncate error message if too long

@@ -58,10 +58,7 @@ explicit_package_bases = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q"
-testpaths = [
-    "tests",
-]
-pythonpath = [
-  "."
-]
+addopts = "--cov=src --cov-report=term-missing -v"
+testpaths = ["tests"]
+python_files = "test_*.py"
+pythonpath = ["."]
