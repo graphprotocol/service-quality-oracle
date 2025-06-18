@@ -1,5 +1,5 @@
 """
-Unit tests for the private key validator.
+Unit tests for the private key validator, refactored for clarity and maintainability.
 """
 
 import pytest
@@ -7,71 +7,89 @@ import pytest
 from src.utils.key_validator import KeyValidationError, validate_and_format_private_key
 
 # =============================================================================
-# POSITIVE TEST CASES
+# POSITIVE TEST CASES (VALID INPUTS)
 # =============================================================================
 
-
-def test_valid_key_no_prefix():
-    """Test a valid 64-character hex key without a prefix."""
-    key = "f" * 64
-    assert validate_and_format_private_key(key) == f"0x{key}"
-
-
-def test_valid_key_with_0x_prefix():
-    """Test a valid key that already has the '0x' prefix."""
-    key = "a" * 64
-    assert validate_and_format_private_key(f"0x{key}") == f"0x{key}"
+# Test cases for valid keys. Each tuple contains: (test_id, input_key, expected_output)
+VALID_KEY_TEST_CASES = [
+    ("no_prefix", "f" * 64, "0x" + "f" * 64),
+    ("with_0x_prefix", "0x" + "a" * 64, "0x" + "a" * 64),
+    ("with_0X_prefix", "0X" + "c" * 64, "0x" + "c" * 64),
+    ("with_whitespace", "  " + "b" * 64 + "  ", "0x" + "b" * 64),
+    ("mixed_case_key", "a1B2c3D4" * 8, "0x" + "a1b2c3d4" * 8),
+    ("all_digits_key", "12345678" * 8, "0x" + "12345678" * 8),
+]
 
 
-def test_valid_key_with_leading_whitespace():
-    """Test a key with leading/trailing whitespace, which should be stripped."""
-    key = "b" * 64
-    assert validate_and_format_private_key(f"  {key}  ") == f"0x{key}"
-
-
-def test_mixed_case_key_is_lowercased():
-    """Test a key with mixed-case hex characters, expecting lowercase output."""
-    key_mixed = "a1B2c3D4" * 8
-    key_lower = key_mixed.lower()
-    assert validate_and_format_private_key(key_mixed) == f"0x{key_lower}"
+@pytest.mark.parametrize(
+    "test_id, input_key, expected",
+    VALID_KEY_TEST_CASES,
+    ids=[case[0] for case in VALID_KEY_TEST_CASES],
+)
+def test_valid_keys_are_formatted_correctly(test_id, input_key, expected):
+    """
+    Test that various valid private key formats are correctly validated and formatted.
+    This single test covers multiple valid input scenarios.
+    """
+    # Act
+    formatted_key = validate_and_format_private_key(input_key)
+    # Assert
+    assert formatted_key == expected
 
 
 # =============================================================================
-# NEGATIVE TEST CASES (INVALID INPUT)
+# NEGATIVE TEST CASES (INVALID FORMAT)
 # =============================================================================
 
+# Test cases for keys with invalid format (length or characters).
+# Each tuple contains: (test_id, invalid_key)
+INVALID_FORMAT_TEST_CASES = [
+    ("too_short", "a" * 63),
+    ("too_long", "a" * 65),
+    ("non_hex_chars", "g" * 64),
+    ("mixed_hex_and_non_hex", "f" * 63 + "z"),
+]
 
-def test_invalid_key_too_short():
-    """Test a key that is too short, expecting a KeyValidationError."""
+
+@pytest.mark.parametrize(
+    "test_id, invalid_key",
+    INVALID_FORMAT_TEST_CASES,
+    ids=[case[0] for case in INVALID_FORMAT_TEST_CASES],
+)
+def test_invalid_key_format_raises_error(test_id, invalid_key):
+    """
+    Test that keys with an invalid format (incorrect length or non-hex characters)
+    raise a KeyValidationError with a specific message.
+    """
+    # Act and Assert
     with pytest.raises(KeyValidationError, match="Private key must be 64 hex characters"):
-        validate_and_format_private_key("a" * 63)
+        validate_and_format_private_key(invalid_key)
 
 
-def test_invalid_key_too_long():
-    """Test a key that is too long, expecting a KeyValidationError."""
-    with pytest.raises(KeyValidationError, match="Private key must be 64 hex characters"):
-        validate_and_format_private_key("a" * 65)
+# =============================================================================
+# NEGATIVE TEST CASES (INVALID INPUT TYPE)
+# =============================================================================
+
+# Test cases for invalid input types or empty values.
+# Each tuple contains: (test_id, invalid_input)
+INVALID_INPUT_TYPE_CASES = [
+    ("empty_string", ""),
+    ("none_value", None),
+    ("non_string_integer", 12345),
+    ("non_string_list", []),
+]
 
 
-def test_invalid_key_non_hex():
-    """Test a key containing non-hexadecimal characters."""
-    with pytest.raises(KeyValidationError, match="Private key must be 64 hex characters"):
-        validate_and_format_private_key("g" * 64)
-
-
-def test_empty_string_key():
-    """Test an empty string, which should be invalid."""
+@pytest.mark.parametrize(
+    "test_id, invalid_input",
+    INVALID_INPUT_TYPE_CASES,
+    ids=[case[0] for case in INVALID_INPUT_TYPE_CASES],
+)
+def test_invalid_input_type_raises_error(test_id, invalid_input):
+    """
+    Test that invalid input types (e.g., None, non-string) or an empty string
+    raise a KeyValidationError with a specific message.
+    """
+    # Act and Assert
     with pytest.raises(KeyValidationError, match="Private key must be a non-empty string"):
-        validate_and_format_private_key("")
-
-
-def test_none_key():
-    """Test a None input, which should be invalid."""
-    with pytest.raises(KeyValidationError, match="Private key must be a non-empty string"):
-        validate_and_format_private_key(None)
-
-
-def test_non_string_key():
-    """Test a non-string input type (e.g., integer), which should be invalid."""
-    with pytest.raises(KeyValidationError, match="Private key must be a non-empty string"):
-        validate_and_format_private_key(12345)
+        validate_and_format_private_key(invalid_input)
