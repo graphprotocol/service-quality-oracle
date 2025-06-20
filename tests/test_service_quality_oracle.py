@@ -3,13 +3,13 @@ Unit tests for the main ServiceQualityOracle orchestrator.
 """
 
 from datetime import date
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+import importlib
+import sys
 
 import pandas as pd
 import pytest
-
-# The main function will be imported inside each test after patches are applied
-import src.models.service_quality_oracle
 
 MOCK_CONFIG = {
     "SLACK_WEBHOOK_URL": "http://fake.slack.com",
@@ -42,69 +42,74 @@ MOCK_CONFIG = {
 
 
 @pytest.fixture
-def mock_dependencies():
-    """A comprehensive fixture to mock all external dependencies of the main oracle function."""
+def oracle_context():
+    """Patch all external dependencies and reload the oracle module to pick them up."""
     with (
-        patch("src.models.service_quality_oracle.credential_manager") as mock_creds,
-        patch("src.models.service_quality_oracle.load_config", return_value=MOCK_CONFIG) as mock_load_config,
-        patch("src.models.service_quality_oracle.create_slack_notifier") as mock_create_slack,
-        patch("src.models.service_quality_oracle.BigQueryProvider") as mock_bq_provider,
-        patch("src.models.service_quality_oracle.EligibilityPipeline") as mock_pipeline,
-        patch("src.models.service_quality_oracle.BlockchainClient") as mock_blockchain_client,
-        patch("sys.exit") as mock_exit,
+        patch("src.utils.configuration.credential_manager.setup_google_credentials") as mock_setup_creds,
+        patch("src.utils.configuration.load_config", return_value=MOCK_CONFIG) as mock_load_config,
+        patch("src.utils.slack_notifier.create_slack_notifier") as mock_create_slack,
+        patch("src.models.bigquery_provider.BigQueryProvider") as mock_bq_provider_cls,
+        patch("src.models.eligibility_pipeline.EligibilityPipeline") as mock_pipeline_cls,
+        patch("src.models.blockchain_client.BlockchainClient") as mock_client_cls,
+        patch("src.models.service_quality_oracle.Path") as mock_path_cls,
+        patch("logging.Logger.error") as mock_logger_error,
     ):
-        # Configure the return values of mocked instances
-        mock_bq_provider.return_value.fetch_indexer_issuance_eligibility_data.return_value = pd.DataFrame()
-        mock_pipeline.return_value.process.return_value = (["0xEligible"], ["0xIneligible"])
-        mock_blockchain_client.return_value.batch_allow_indexers_issuance_eligibility.return_value = [
-            "http://tx-link"
-        ]
+        # Configure mock Path to return a consistent root path object
+        mock_project_root = MagicMock(spec=Path)
+        mock_path_instance = MagicMock()
+        mock_path_instance.resolve.return_value.parents.__getitem__.return_value = mock_project_root
+        mock_path_cls.return_value = mock_path_instance
+
+        # Configure instance return values for mocked classes
+        mock_bq_provider = mock_bq_provider_cls.return_value
+        mock_bq_provider.fetch_indexer_issuance_eligibility_data.return_value = pd.DataFrame()
+
+        mock_pipeline = mock_pipeline_cls.return_value
+        mock_pipeline.process.return_value = (["0xEligible"], ["0xIneligible"])
+
+        mock_client = mock_client_cls.return_value
+        mock_client.batch_allow_indexers_issuance_eligibility.return_value = ["http://tx-link"]
+
+        # Reload module so that patched objects are used inside it
+        if "src.models.service_quality_oracle" in sys.modules:
+            del sys.modules["src.models.service_quality_oracle"]
+        import src.models.service_quality_oracle as sqo
+        importlib.reload(sqo)
 
         yield {
-            "creds": mock_creds,
+            "main": sqo.main,
+            "setup_creds": mock_setup_creds,
             "load_config": mock_load_config,
-            "create_slack": mock_create_slack,
-            "slack_notifier": mock_create_slack.return_value,
-            "BigQueryProvider": mock_bq_provider,
-            "bq_provider_instance": mock_bq_provider.return_value,
-            "EligibilityPipeline": mock_pipeline,
-            "pipeline_instance": mock_pipeline.return_value,
-            "BlockchainClient": mock_blockchain_client,
-            "blockchain_client_instance": mock_blockchain_client.return_value,
-            "exit": mock_exit,
+            "slack": {"create": mock_create_slack, "notifier": mock_create_slack.return_value},
+            "bq_provider_cls": mock_bq_provider_cls,
+            "bq_provider": mock_bq_provider,
+            "pipeline_cls": mock_pipeline_cls,
+            "pipeline": mock_pipeline,
+            "client_cls": mock_client_cls,
+            "client": mock_client,
+            "project_root": mock_project_root,
+            "logger_error": mock_logger_error,
         }
 
 
-def test_main_successful_run(mock_dependencies: dict):
-    """
-    Tests the successful end-to-end run of `main()` with all dependencies mocked,
-    ensuring each component is called correctly and a success notification is sent.
-    """
-    # 1. Action
-    src.models.service_quality_oracle.main()
+def test_main_successful_run(oracle_context):
+    """Test the primary successful execution path of the oracle."""
+    ctx = oracle_context
+    ctx["main"]()
 
-    # 2. Assertions
-    # Initialization
-    mock_dependencies["creds"].setup_google_credentials.assert_called_once()
-    mock_dependencies["load_config"].assert_called_once()
-    mock_dependencies["create_slack"].assert_called_once_with(MOCK_CONFIG["SLACK_WEBHOOK_URL"])
+    ctx["setup_creds"].assert_called_once()
+    ctx["load_config"].assert_called_once()
+    ctx["slack"]["create"].assert_called_once_with(MOCK_CONFIG["SLACK_WEBHOOK_URL"])
 
-    # BigQuery Fetching
-    mock_dependencies["BigQueryProvider"].assert_called_once()
-    mock_dependencies["bq_provider_instance"].fetch_indexer_issuance_eligibility_data.assert_called_once()
+    ctx["bq_provider_cls"].assert_called_once()
+    ctx["bq_provider"].fetch_indexer_issuance_eligibility_data.assert_called_once()
 
-    # Eligibility Pipeline
-    mock_dependencies["EligibilityPipeline"].assert_called_once()
-    mock_dependencies["pipeline_instance"].process.assert_called_once()
-    mock_dependencies["pipeline_instance"].clean_old_date_directories.assert_called_once_with(
-        MOCK_CONFIG["MAX_AGE_BEFORE_DELETION"]
-    )
+    ctx["pipeline_cls"].assert_called_once()
+    ctx["pipeline"].process.assert_called_once()
+    ctx["pipeline"].clean_old_date_directories.assert_called_once_with(MOCK_CONFIG["MAX_AGE_BEFORE_DELETION"])
 
-    # Blockchain Submission
-    mock_dependencies["BlockchainClient"].assert_called_once()
-    mock_dependencies[
-        "blockchain_client_instance"
-    ].batch_allow_indexers_issuance_eligibility.assert_called_once_with(
+    ctx["client_cls"].assert_called_once()
+    ctx["client"].batch_allow_indexers_issuance_eligibility.assert_called_once_with(
         indexer_addresses=["0xEligible"],
         private_key=MOCK_CONFIG["PRIVATE_KEY"],
         chain_id=MOCK_CONFIG["BLOCKCHAIN_CHAIN_ID"],
@@ -113,85 +118,78 @@ def test_main_successful_run(mock_dependencies: dict):
         replace=True,
     )
 
-    # Final Notifications and Exit
-    mock_dependencies["slack_notifier"].send_success_notification.assert_called_once()
-    mock_dependencies["exit"].assert_not_called()
+    ctx["slack"]["notifier"].send_success_notification.assert_called_once()
 
 
 @pytest.mark.parametrize(
-    "failure_stage, expected_stage_name",
+    "failing_component, expected_stage",
     [
-        ("bq_provider_instance", "Data Fetching from BigQuery"),
-        ("pipeline_instance", "Data Processing and Artifact Generation"),
-        ("blockchain_client_instance", "Blockchain Submission"),
+        ("setup_creds", "Initialization"),
+        ("load_config", "Initialization"),
+        ("slack_create", "Initialization"),
+        ("bq_provider", "Data Fetching from BigQuery"),
+        ("pipeline_process", "Data Processing and Artifact Generation"),
+        ("pipeline_clean", "Data Processing and Artifact Generation"),
+        ("client", "Blockchain Submission"),
     ],
 )
-def test_main_failure_at_stage(mock_dependencies: dict, failure_stage: str, expected_stage_name: str):
-    """
-    Tests that `main` sends a failure notification and exits if any stage of the
-    pipeline fails.
-    """
-    # 1. Setup
-    # Simulate an error in one of the main methods
-    if failure_stage == "bq_provider_instance":
-        mock_dependencies[failure_stage].fetch_indexer_issuance_eligibility_data.side_effect = Exception(
-            "BigQuery Error"
-        )
-    elif failure_stage == "pipeline_instance":
-        mock_dependencies[failure_stage].process.side_effect = Exception("Pipeline Error")
-    elif failure_stage == "blockchain_client_instance":
-        mock_dependencies[failure_stage].batch_allow_indexers_issuance_eligibility.side_effect = Exception(
-            "Blockchain Error"
-        )
+def test_main_handles_failures_gracefully(oracle_context, failing_component, expected_stage):
+    """Test that failures at different stages are caught, logged, and cause a system exit."""
+    ctx = oracle_context
+    error = Exception(f"{failing_component} error")
 
-    # 2. Action
-    src.models.service_quality_oracle.main()
+    mock_map = {
+        "setup_creds": ctx["setup_creds"],
+        "load_config": ctx["load_config"],
+        "slack_create": ctx["slack"]["create"],
+        "bq_provider": ctx["bq_provider"].fetch_indexer_issuance_eligibility_data,
+        "pipeline_process": ctx["pipeline"].process,
+        "pipeline_clean": ctx["pipeline"].clean_old_date_directories,
+        "client": ctx["client"].batch_allow_indexers_issuance_eligibility,
+    }
+    mock_to_fail = mock_map[failing_component]
+    mock_to_fail.side_effect = error
 
-    # 3. Assertions
-    mock_dependencies["slack_notifier"].send_failure_notification.assert_called_once()
-    # Check that the stage name in the notification is correct
-    call_kwargs = mock_dependencies["slack_notifier"].send_failure_notification.call_args.kwargs
-    assert call_kwargs["stage"] == expected_stage_name
+    with pytest.raises(SystemExit) as excinfo:
+        ctx["main"]()
 
-    mock_dependencies["exit"].assert_called_once_with(1)
+    assert excinfo.value.code == 1, "The application should exit with status code 1 on failure."
 
+    ctx["logger_error"].assert_any_call(
+        f"Oracle failed at stage '{expected_stage}': {error}", exc_info=True
+    )
 
-def test_main_with_date_override(mock_dependencies: dict):
-    """
-    Tests that `main()` correctly uses the `run_date_override` parameter to calculate
-    the date range for the BigQuery query.
-    """
-    # 1. Setup
-    override_date = date(2023, 10, 27)
-    expected_start_date = override_date - pd.Timedelta(days=MOCK_CONFIG["BIGQUERY_ANALYSIS_PERIOD_DAYS"])
-
-    # 2. Action
-    src.models.service_quality_oracle.main(run_date_override=override_date)
-
-    # 3. Assertions
-    # Check that the BQ provider was called with the correct, overridden date range
-    call_args = mock_dependencies["bq_provider_instance"].fetch_indexer_issuance_eligibility_data.call_args
-    assert call_args[0][0] == expected_start_date
-    assert call_args[0][1] == override_date
+    # If config loading or Slack notifier creation fails, no notification can be sent.
+    if failing_component in ["load_config", "slack_create"]:
+        ctx["slack"]["notifier"].send_failure_notification.assert_not_called()
+    else:
+        ctx["slack"]["notifier"].send_failure_notification.assert_called_once()
+        call_args = ctx["slack"]["notifier"].send_failure_notification.call_args.kwargs
+        assert call_args["stage"] == expected_stage
+        assert call_args["error_message"] == str(error)
 
 
-def test_main_with_no_eligible_indexers(mock_dependencies: dict):
-    """
-    Tests that the pipeline completes gracefully and sends a success notification
-    even when no eligible indexers are found.
-    """
-    # 1. Setup
-    # Simulate the pipeline returning no eligible indexers
-    mock_dependencies["pipeline_instance"].process.return_value = ([], ["0x1", "0x2"])
+def test_main_with_date_override(oracle_context):
+    """Test that providing a date override correctly adjusts the analysis window."""
+    ctx = oracle_context
+    override = date(2023, 10, 27)
+    start_expected = override - pd.Timedelta(days=MOCK_CONFIG["BIGQUERY_ANALYSIS_PERIOD_DAYS"])
 
-    # 2. Action
-    src.models.service_quality_oracle.main()
+    ctx["main"](run_date_override=override)
 
-    # 3. Assertions
-    # Check that the blockchain client was still called, but with an empty list
-    mock_dependencies[
-        "blockchain_client_instance"
-    ].batch_allow_indexers_issuance_eligibility.assert_called_once_with(
+    ctx["bq_provider"].fetch_indexer_issuance_eligibility_data.assert_called_once()
+    args, _ = ctx["bq_provider"].fetch_indexer_issuance_eligibility_data.call_args
+    assert args == (start_expected, override)
+
+
+def test_main_with_no_eligible_indexers(oracle_context):
+    """Test the execution path when the pipeline finds no eligible indexers."""
+    ctx = oracle_context
+    ctx["pipeline"].process.return_value = ([], ["0xIneligible"])
+
+    ctx["main"]()
+
+    ctx["client"].batch_allow_indexers_issuance_eligibility.assert_called_once_with(
         indexer_addresses=[],
         private_key=MOCK_CONFIG["PRIVATE_KEY"],
         chain_id=MOCK_CONFIG["BLOCKCHAIN_CHAIN_ID"],
@@ -199,7 +197,50 @@ def test_main_with_no_eligible_indexers(mock_dependencies: dict):
         batch_size=MOCK_CONFIG["BATCH_SIZE"],
         replace=True,
     )
+    ctx["slack"]["notifier"].send_success_notification.assert_called_once()
 
-    # Ensure a success notification is still sent
-    mock_dependencies["slack_notifier"].send_success_notification.assert_called_once()
-    mock_dependencies["exit"].assert_not_called()
+
+def test_main_no_slack_configured(oracle_context):
+    """Test that the oracle runs without sending notifications if Slack is not configured."""
+    ctx = oracle_context
+    ctx["slack"]["create"].return_value = None
+
+    ctx["main"]()
+
+    ctx["load_config"].assert_called_once()
+    ctx["client"].batch_allow_indexers_issuance_eligibility.assert_called_once()
+    ctx["slack"]["notifier"].send_success_notification.assert_not_called()
+    ctx["slack"]["notifier"].send_failure_notification.assert_not_called()
+
+
+def test_main_failure_notification_fails(oracle_context):
+    """Test that the oracle exits gracefully if sending the failure notification also fails."""
+    ctx = oracle_context
+    ctx["pipeline"].process.side_effect = Exception("Pipeline error")
+    ctx["slack"]["notifier"].send_failure_notification.side_effect = Exception("Slack is down")
+
+    with pytest.raises(SystemExit) as excinfo:
+        ctx["main"]()
+
+    assert excinfo.value.code == 1
+    ctx["logger_error"].assert_any_call(
+        "Oracle failed at stage 'Data Processing and Artifact Generation': Pipeline error",
+        exc_info=True,
+    )
+    ctx["logger_error"].assert_any_call(
+        "Failed to send Slack failure notification: Slack is down", exc_info=True
+    )
+
+
+def test_main_success_notification_fails(oracle_context):
+    """Test that a failure in sending the success notification is logged but does not cause an exit."""
+    ctx = oracle_context
+    error = Exception("Slack API error on success")
+    ctx["slack"]["notifier"].send_success_notification.side_effect = error
+
+    ctx["main"]()
+
+    ctx["logger_error"].assert_called_once_with(
+        f"Failed to send Slack success notification: {error}", exc_info=True
+    )
+    ctx["slack"]["notifier"].send_failure_notification.assert_not_called()

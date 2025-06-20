@@ -30,7 +30,11 @@ class SlackNotifier:
 
 
     @retry_with_backoff(
-        max_attempts=8, min_wait=1, max_wait=128, exceptions=(requests.exceptions.RequestException,)
+        max_attempts=8,
+        min_wait=1,
+        max_wait=128,
+        exceptions=(requests.exceptions.RequestException,),
+        reraise=True,
     )
     def _send_message(self, payload: Dict) -> bool:
         """
@@ -40,7 +44,9 @@ class SlackNotifier:
             payload: The message payload to send
 
         Returns:
-            bool: True if message was sent successfully, False otherwise
+            bool: True if message was sent successfully.
+        Raises:
+            requests.exceptions.RequestException: If the request fails after all retries.
         """
         # Get the message type from the payload
         message_type = payload.get("text", "Unknown")
@@ -48,29 +54,18 @@ class SlackNotifier:
         # Log the message type
         logger.info(f"Sending Slack notification: {message_type}")
 
-        try:
-            response = requests.post(
-                self.webhook_url,
-                json=payload,
-                timeout=self.timeout,
-                headers={"Content-Type": "application/json"},
-            )
+        response = requests.post(
+            self.webhook_url,
+            json=payload,
+            timeout=self.timeout,
+            headers={"Content-Type": "application/json"},
+        )
+        # Raise an exception for 4xx/5xx responses
+        response.raise_for_status()
 
-            # If the message is sent successfully, return True
-            if response.status_code == 200:
-                logger.info("Slack notification sent successfully")
-                return True
-            else:
-                # log message failure
-                logger.warning(f"Slack notification failed: {response.status_code}")
-                # Raise an exception to trigger retry
-                response.raise_for_status()
-                return False
-
-        # If there is an error when trying to send the message, log the error and re-raise
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"Slack notification failed: {str(e)}")
-            raise
+        # If the message is sent successfully, return True
+        logger.info("Slack notification sent successfully")
+        return True
 
 
     def _create_payload(self, text: str, fields: List[Dict], color: str = "good") -> Dict:

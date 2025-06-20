@@ -41,19 +41,21 @@ def main(run_date_override: date = None):
         run_date_override: If provided, use this date for the run instead of today.
     """
     start_time = time.time()
-    slack_notifier = None
     stage = "Initialization"
     project_root_path = Path(__file__).resolve().parents[2]
+    slack_notifier = None
 
     try:
         # Configuration and credentials
-        credential_manager.setup_google_credentials()
         config = load_config()
         slack_notifier = create_slack_notifier(config.get("SLACK_WEBHOOK_URL"))
+        
         if slack_notifier:
             logger.info("Slack notifications enabled")
         else:
             logger.info("Slack notifications disabled (no webhook URL configured)")
+            
+        credential_manager.setup_google_credentials()
 
         # Define the date for the current run
         current_run_date = run_date_override or date.today()
@@ -117,15 +119,18 @@ def main(run_date_override: date = None):
         logger.info(f"Oracle run completed successfully in {execution_time:.2f} seconds")
 
         if slack_notifier:
-            batch_count = len(transaction_links) if transaction_links else 0
-            total_processed = len(eligible_indexers)
-            slack_notifier.send_success_notification(
-                eligible_indexers=eligible_indexers,
-                total_processed=total_processed,
-                execution_time=execution_time,
-                transaction_links=transaction_links,
-                batch_count=batch_count,
-            )
+            try:
+                batch_count = len(transaction_links) if transaction_links else 0
+                total_processed = len(eligible_indexers)
+                slack_notifier.send_success_notification(
+                    eligible_indexers=eligible_indexers,
+                    total_processed=total_processed,
+                    execution_time=execution_time,
+                    transaction_links=transaction_links,
+                    batch_count=batch_count,
+                )
+            except Exception as e:
+                logger.error(f"Failed to send Slack success notification: {e}", exc_info=True)
 
     except Exception as e:
         execution_time = time.time() - start_time
