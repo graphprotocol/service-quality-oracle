@@ -11,6 +11,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+import google.auth
+from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
+
 # Handle Python version compatibility for TOML loading
 if sys.version_info >= (3, 11):
     import tomllib
@@ -266,7 +270,7 @@ def _validate_config(config: dict[str, Any]) -> dict[str, Any]:
         "ETHERSCAN_API_KEY",
         "ARBITRUM_API_KEY",
     ]
-    missing = [field for field in required if not config.get(field)]
+    missing = [field for field in required if config.get(field) is None or config.get(field) in ("", [])]
     if missing:
         raise ConfigurationError(
             "Missing required configuration fields in config.toml or environment variables:",
@@ -350,9 +354,6 @@ class CredentialManager:
 
     def _setup_user_credentials_from_dict(self, creds_data: dict) -> None:
         """Set up user account credentials directly from a dictionary."""
-        import google.auth
-        from google.oauth2.credentials import Credentials
-
         # Try to set up the credentials
         try:
             credentials = Credentials(
@@ -367,17 +368,13 @@ class CredentialManager:
             google.auth._default._CREDENTIALS = credentials  # type: ignore[attr-defined]
             logger.info("Successfully loaded user account credentials from environment variable")
 
-        # Clear credentials from memory
-        finally:
-            if "creds_data" in locals():
-                creds_data.clear()
+        except Exception as e:
+            # Re-raise SDK exceptions for the caller to handle.
+            raise e
 
 
     def _setup_service_account_credentials_from_dict(self, creds_data: dict) -> None:
         """Set up service account credentials directly from a dictionary."""
-        import google.auth
-        from google.oauth2 import service_account
-
         # Try to set up the credentials
         try:
             # Create credentials object directly from dict
@@ -390,11 +387,6 @@ class CredentialManager:
         # If the credentials creation fails, raise an error
         except Exception as e:
             raise ValueError(f"Invalid service account credentials: {e}") from e
-
-        # Clear the original credentials dict from memory if it exists
-        finally:
-            if "creds_data" in locals():
-                creds_data.clear()
 
 
     def setup_google_credentials(self) -> None:
