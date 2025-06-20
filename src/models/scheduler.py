@@ -89,6 +89,7 @@ class Scheduler:
         before_sleep=lambda retry_state: logger.warning(
             f"Retry attempt {retry_state.attempt_number} after error: {retry_state.outcome.exception()}"
         ),
+        reraise=True,
     )
     def run_oracle(self, run_date_override=None):
         """
