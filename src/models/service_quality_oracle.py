@@ -49,12 +49,12 @@ def main(run_date_override: date = None):
         # Configuration and credentials
         config = load_config()
         slack_notifier = create_slack_notifier(config.get("SLACK_WEBHOOK_URL"))
-        
+
         if slack_notifier:
             logger.info("Slack notifications enabled")
         else:
             logger.info("Slack notifications disabled (no webhook URL configured)")
-            
+
         credential_manager.setup_google_credentials()
 
         # Define the date for the current run

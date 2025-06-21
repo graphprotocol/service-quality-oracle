@@ -2,6 +2,7 @@
 Unit tests for the EligibilityPipeline.
 """
 
+import logging
 import shutil
 from datetime import date, timedelta
 from pathlib import Path
@@ -10,10 +11,8 @@ from typing import List
 import pandas as pd
 import pytest
 from pytest import FixtureRequest
-import logging
 
 from src.models.eligibility_pipeline import EligibilityPipeline
-
 
 # --- Fixtures ---
 
@@ -226,7 +225,9 @@ def test_clean_old_date_directories_removes_old_and_preserves_new(
     """
     # Arrange
     today = date.today()
-    dirs_to_create = {day: pipeline.get_date_output_directory(today - timedelta(days=day)) for day in days_to_create}
+    dirs_to_create = {
+        day: pipeline.get_date_output_directory(today - timedelta(days=day)) for day in days_to_create
+    }
     for d in dirs_to_create.values():
         d.mkdir(parents=True)
         # Add a dummy file to ensure rmtree on non-empty dirs is tested

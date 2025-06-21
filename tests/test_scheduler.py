@@ -2,9 +2,7 @@
 Unit tests for the Scheduler, organized for clarity and complete coverage.
 """
 
-import os
 import sys
-import time
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, mock_open, patch
@@ -85,6 +83,7 @@ def scheduler(mock_dependencies: SimpleNamespace) -> Scheduler:
 class TestSchedulerInitialization:
     """Tests for the __init__ and initialize methods."""
 
+
     def test_initialize_succeeds_on_happy_path(self, mock_dependencies: SimpleNamespace):
         """Tests that the scheduler initializes correctly, scheduling the job and performing checks."""
         with patch.object(Scheduler, "check_missed_runs") as mock_check_missed:
@@ -104,6 +103,7 @@ class TestSchedulerInitialization:
             mock_check_missed.assert_called_once()
             mock_dependencies.open.assert_any_call("/app/healthcheck", "w")
 
+
     def test_initialize_handles_configuration_error_and_exits(self, mock_dependencies: SimpleNamespace):
         """Tests that sys.exit is called if initialization fails due to a configuration error."""
         mock_dependencies.validate.side_effect = ConfigurationError("Missing env var")
@@ -114,6 +114,7 @@ class TestSchedulerInitialization:
         mock_dependencies.create_slack.assert_called_once_with(MOCK_CONFIG["SLACK_WEBHOOK_URL"])
         mock_dependencies.slack_notifier.send_failure_notification.assert_called_once()
         mock_dependencies.exit.assert_called_once_with(1)
+
 
     def test_initialize_handles_generic_exception_and_exits(self, mock_dependencies: SimpleNamespace):
         """Tests that sys.exit is called for any non-ConfigurationError exception during init."""
@@ -126,6 +127,7 @@ class TestSchedulerInitialization:
         mock_dependencies.slack_notifier.send_failure_notification.assert_called_once()
         mock_dependencies.exit.assert_called_once_with(1)
 
+
     def test_initialize_runs_oracle_when_run_on_startup_is_true(self, mock_dependencies: SimpleNamespace):
         """Tests that the oracle is executed immediately if RUN_ON_STARTUP is true."""
         mock_dependencies.os.environ.get.side_effect = lambda key, default: (
@@ -136,6 +138,7 @@ class TestSchedulerInitialization:
                 Scheduler()
                 mock_run_oracle.assert_called_once_with()
 
+
     def test_initialize_skips_startup_run_when_flag_is_false(self, mock_dependencies: SimpleNamespace):
         """Tests that the oracle is NOT executed on startup if RUN_ON_STARTUP is 'false'."""
         mock_dependencies.os.environ.get.return_value = "false"
@@ -143,6 +146,7 @@ class TestSchedulerInitialization:
             with patch.object(Scheduler, "check_missed_runs"):
                 Scheduler()
                 mock_run_oracle.assert_not_called()
+
 
     def test_initialize_handles_disabled_slack(self, mock_dependencies: SimpleNamespace):
         """Tests that initialization proceeds without Slack if the webhook is missing."""
@@ -157,6 +161,7 @@ class TestSchedulerInitialization:
 
 class TestSchedulerStateManagement:
     """Tests for file-based state management methods."""
+
 
     @pytest.mark.parametrize(
         "file_content, file_exists, expected_date_str",
@@ -195,6 +200,7 @@ class TestSchedulerStateManagement:
         expected_date = datetime.strptime(expected_date_str, "%Y-%m-%d").date() if expected_date_str else None
         assert last_run == expected_date
 
+
     @patch("src.models.scheduler.datetime")
     def test_get_last_run_date_logs_warning_when_capping(
         self, mock_datetime, scheduler: Scheduler, mock_dependencies: SimpleNamespace
@@ -208,6 +214,7 @@ class TestSchedulerStateManagement:
         scheduler.get_last_run_date()
         mock_dependencies.logger.warning.assert_called_once()
 
+
     @patch("src.models.scheduler.datetime")
     def test_get_last_run_date_logs_error_on_corrupted_file(
         self, mock_datetime, scheduler: Scheduler, mock_dependencies: SimpleNamespace
@@ -220,6 +227,7 @@ class TestSchedulerStateManagement:
 
         scheduler.get_last_run_date()
         mock_dependencies.logger.error.assert_called_once()
+
 
     def test_save_last_run_date_writes_to_file(self, scheduler: Scheduler, mock_dependencies: SimpleNamespace):
         """Tests that `save_last_run_date` correctly writes the formatted date string to a file."""
@@ -239,6 +247,7 @@ class TestSchedulerStateManagement:
         mock_dependencies.open.assert_called_once_with("/app/data/last_run.txt", "w")
         mock_dependencies.open().write.assert_called_once_with("2023-10-27")
 
+
     def test_save_last_run_date_logs_error_on_io_failure(
         self, scheduler: Scheduler, mock_dependencies: SimpleNamespace
     ):
@@ -246,6 +255,7 @@ class TestSchedulerStateManagement:
         mock_dependencies.open.side_effect = IOError("Permission denied")
         scheduler.save_last_run_date(date.today())
         mock_dependencies.logger.error.assert_called_with("Error saving last run date: Permission denied")
+
 
     def test_update_healthcheck_writes_timestamp_and_message(
         self, scheduler: Scheduler, mock_dependencies: SimpleNamespace
@@ -258,6 +268,7 @@ class TestSchedulerStateManagement:
         assert file_handle.write.call_args_list[0].args[0].startswith("Last update:")
         assert "testing" in file_handle.write.call_args_list[1].args[0]
 
+
     def test_update_healthcheck_logs_warning_on_io_failure(
         self, scheduler: Scheduler, mock_dependencies: SimpleNamespace
     ):
@@ -269,6 +280,7 @@ class TestSchedulerStateManagement:
 
 class TestSchedulerTasks:
     """Tests for the main oracle tasks and missed run checks."""
+
 
     @pytest.mark.parametrize(
         "last_run_delta, should_run_oracle, should_notify_slack",
@@ -299,6 +311,7 @@ class TestSchedulerTasks:
         else:
             scheduler.slack_notifier.send_info_notification.assert_not_called()
 
+
     def test_check_missed_runs_does_not_notify_if_slack_is_disabled(self, scheduler: Scheduler):
         """Tests that no Slack notification is sent for missed runs if Slack is disabled."""
         scheduler.slack_notifier = None
@@ -308,6 +321,7 @@ class TestSchedulerTasks:
         scheduler.check_missed_runs()
 
         scheduler.run_oracle.assert_called_once()
+
 
     @pytest.mark.parametrize(
         "run_date_override, expected_date_in_call",
@@ -330,6 +344,7 @@ class TestSchedulerTasks:
         scheduler.save_last_run_date.assert_called_once_with(expected_date_in_call)
         scheduler.update_healthcheck.assert_called_once()
 
+
     def test_run_oracle_retries_on_failure(self, scheduler: Scheduler, mock_dependencies: SimpleNamespace):
         """Tests that the @retry decorator on `run_oracle` functions as expected."""
         expected_attempts = 5
@@ -348,6 +363,7 @@ class TestSchedulerTasks:
 class TestSchedulerRunLoop:
     """Tests for the main `run` loop of the scheduler."""
 
+
     def test_run_loop_calls_run_pending_and_sleeps(self, scheduler: Scheduler, mock_dependencies: SimpleNamespace):
         """Tests that the run loop correctly calls schedule and sleeps."""
         mock_dependencies.schedule.run_pending.side_effect = [None, None, KeyboardInterrupt]
@@ -359,6 +375,7 @@ class TestSchedulerRunLoop:
         mock_dependencies.time.sleep.assert_has_calls([call(60), call(60)])
         assert scheduler.update_healthcheck.call_count == 2
         mock_dependencies.logger.info.assert_any_call("Scheduler stopped by user")
+
 
     def test_run_loop_handles_keyboard_interrupt_gracefully(
         self, scheduler: Scheduler, mock_dependencies: SimpleNamespace
@@ -374,6 +391,7 @@ class TestSchedulerRunLoop:
         mock_dependencies.logger.info.assert_called_with("Scheduler stopped by user")
         mock_dependencies.exit.assert_not_called()
 
+
     def test_run_loop_handles_unexpected_exception(self, scheduler: Scheduler, mock_dependencies: SimpleNamespace):
         """Tests that a generic exception is caught, a notification is sent, and the program exits."""
         test_exception = Exception("Critical failure")
@@ -384,7 +402,5 @@ class TestSchedulerRunLoop:
         mock_dependencies.slack_notifier.send_failure_notification.assert_called_once_with(
             error_message=str(test_exception), stage="Scheduler Runtime", execution_time=0
         )
-        mock_dependencies.logger.error.assert_called_with(
-            f"Scheduler crashed: {test_exception}", exc_info=True
-        )
+        mock_dependencies.logger.error.assert_called_with(f"Scheduler crashed: {test_exception}", exc_info=True)
         mock_dependencies.exit.assert_called_once_with(1)

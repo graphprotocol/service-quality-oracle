@@ -2,11 +2,11 @@
 Unit tests for the main ServiceQualityOracle orchestrator.
 """
 
+import importlib
+import sys
 from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import importlib
-import sys
 
 import pandas as pd
 import pytest
@@ -74,6 +74,7 @@ def oracle_context():
         if "src.models.service_quality_oracle" in sys.modules:
             del sys.modules["src.models.service_quality_oracle"]
         import src.models.service_quality_oracle as sqo
+
         importlib.reload(sqo)
 
         yield {
@@ -155,9 +156,7 @@ def test_main_handles_failures_gracefully(oracle_context, failing_component, exp
 
     assert excinfo.value.code == 1, "The application should exit with status code 1 on failure."
 
-    ctx["logger_error"].assert_any_call(
-        f"Oracle failed at stage '{expected_stage}': {error}", exc_info=True
-    )
+    ctx["logger_error"].assert_any_call(f"Oracle failed at stage '{expected_stage}': {error}", exc_info=True)
 
     # If config loading or Slack notifier creation fails, no notification can be sent.
     if failing_component in ["load_config", "slack_create"]:
@@ -227,9 +226,7 @@ def test_main_failure_notification_fails(oracle_context):
         "Oracle failed at stage 'Data Processing and Artifact Generation': Pipeline error",
         exc_info=True,
     )
-    ctx["logger_error"].assert_any_call(
-        "Failed to send Slack failure notification: Slack is down", exc_info=True
-    )
+    ctx["logger_error"].assert_any_call("Failed to send Slack failure notification: Slack is down", exc_info=True)
 
 
 def test_main_success_notification_fails(oracle_context):

@@ -3,9 +3,8 @@ Unit tests for the configuration loader and validator.
 """
 
 import json
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -56,7 +55,9 @@ MOCK_TOML_NULL_INT = """
 MOCK_SERVICE_ACCOUNT_JSON = (
     '{"type": "service_account", "private_key": "pk", "client_email": "ce", "project_id": "pi"}'
 )
-MOCK_AUTH_USER_JSON = '{"type": "authorized_user", "client_id": "ci", "client_secret": "cs", "refresh_token": "rt"}'
+MOCK_AUTH_USER_JSON = (
+    '{"type": "authorized_user", "client_id": "ci", "client_secret": "cs", "refresh_token": "rt"}'
+)
 
 
 # --- Fixtures ---
@@ -127,9 +128,11 @@ def mock_env(monkeypatch):
 @pytest.fixture
 def mock_google_auth():
     """Mocks the google.auth and dependent libraries to isolate credential logic."""
-    with patch("src.utils.configuration.service_account") as mock_service_account, patch(
-        "src.utils.configuration.Credentials"
-    ) as mock_creds, patch("src.utils.configuration.google.auth") as mock_auth:
+    with (
+        patch("src.utils.configuration.service_account") as mock_service_account,
+        patch("src.utils.configuration.Credentials") as mock_creds,
+        patch("src.utils.configuration.google.auth") as mock_auth,
+    ):
         # Configure the mock to prevent AttributeError for '_default'
         mock_auth._default = MagicMock()
         mock_service_account.Credentials.from_service_account_info.return_value = MagicMock()
@@ -147,6 +150,7 @@ def mock_google_auth():
 
 class TestConfigLoader:
     """Tests for the ConfigLoader class."""
+
 
     def test_successful_loading_and_substitution(self, temp_config_file: str, mock_env):
         """
@@ -168,6 +172,7 @@ class TestConfigLoader:
         assert config["BLOCKCHAIN_RPC_URLS"] == ["http://main.com", "http://backup.com"]
         assert config["MIN_ONLINE_DAYS"] == 5  # Should be converted to int
 
+
     def test_optional_integer_fields_default_to_none(self, temp_config_file: str, mock_env):
         """
         GIVEN a config file where optional integer fields are missing
@@ -185,6 +190,7 @@ class TestConfigLoader:
         assert config["MAX_LATENCY_MS"] is None
         assert config["BATCH_SIZE"] is None
 
+
     def test_raises_error_if_config_missing(self):
         """
         GIVEN an invalid file path
@@ -193,6 +199,7 @@ class TestConfigLoader:
         """
         with pytest.raises(ConfigurationError, match="Configuration not found"):
             ConfigLoader(config_path="/a/fake/path/config.toml").get_flat_config()
+
 
     def test_raises_error_if_toml_is_malformed(self, tmp_path: Path):
         """
@@ -208,6 +215,7 @@ class TestConfigLoader:
         with pytest.raises(ConfigurationError, match="Failed to parse configuration"):
             ConfigLoader(config_path=str(config_path)).get_flat_config()
 
+
     def test_raises_error_if_env_var_missing(self, temp_config_file: str):
         """
         GIVEN a config referencing an unset environment variable
@@ -218,6 +226,7 @@ class TestConfigLoader:
         # Note: `mock_env` fixture is NOT used here.
         with pytest.raises(ConfigurationError, match="Required environment variable TEST_PRIVATE_KEY is not set"):
             ConfigLoader(config_path=temp_config_file).get_flat_config()
+
 
     def test_raises_error_for_invalid_integer_value(self, tmp_path: Path):
         """
@@ -234,14 +243,18 @@ class TestConfigLoader:
         with pytest.raises(ValueError):
             loader.get_flat_config()
 
+
     def test_get_default_config_path_docker(self, monkeypatch):
         """
         GIVEN the app is running in a Docker-like environment
         WHEN the default config path is retrieved
         THEN it should return the /app/config.toml path.
         """
+
         # Arrange
         # The mocked function must accept `path_obj` because it's replacing an instance method
+
+
         def mock_exists(path_obj):
             return str(path_obj) == "/app/config.toml"
 
@@ -252,6 +265,7 @@ class TestConfigLoader:
 
         # Assert
         assert found_path == "/app/config.toml"
+
 
     @pytest.mark.parametrize(
         "start_dir_str",
@@ -277,6 +291,7 @@ class TestConfigLoader:
             # use the real file system provided by tmp_path.
             original_exists = Path.exists
 
+
             def mock_exists_local(path_obj):
                 if str(path_obj) == "/app/config.toml":
                     return False
@@ -289,6 +304,7 @@ class TestConfigLoader:
 
             # Assert
             assert found_path == str(config_in_root_path)
+
 
     def test_get_default_config_path_not_found(self, monkeypatch):
         """
@@ -304,6 +320,7 @@ class TestConfigLoader:
         with pytest.raises(ConfigurationError, match="Could not find config.toml"):
             ConfigLoader()._get_default_config_path()
 
+
     def test_get_missing_env_vars(self, monkeypatch, temp_config_file: str):
         """
         GIVEN a config file with environment variable placeholders
@@ -318,6 +335,7 @@ class TestConfigLoader:
         missing = loader.get_missing_env_vars()
         # Assert
         assert sorted(missing) == sorted(["TEST_PRIVATE_KEY", "STUDIO_API_KEY"])
+
 
     @pytest.mark.parametrize(
         "rpc_input, expected_output",
@@ -345,6 +363,7 @@ class TestConfigLoader:
         # Assert
         assert result == expected_output
 
+
     def test_empty_string_for_integer_field_is_none(self, tmp_path: Path):
         """
         GIVEN a config with an empty string for a numeric field
@@ -361,6 +380,7 @@ class TestConfigLoader:
 
         # Assert
         assert config["MIN_ONLINE_DAYS"] is None
+
 
     def test_null_value_for_integer_field_is_none(self, tmp_path: Path):
         """
@@ -383,6 +403,7 @@ class TestConfigLoader:
 class TestConfigValidation:
     """Tests for config validation logic."""
 
+
     def test_validate_config_success(self, full_valid_config: dict):
         """
         GIVEN a complete, valid config dictionary
@@ -391,6 +412,7 @@ class TestConfigValidation:
         """
         # Act & Assert
         _validate_config(full_valid_config)  # Should not raise
+
 
     def test_validate_config_handles_zero_values(self, full_valid_config: dict):
         """
@@ -408,6 +430,7 @@ class TestConfigValidation:
         except ConfigurationError as e:
             pytest.fail(f"Validation incorrectly failed for a field with value 0: {e}")
 
+
     def test_validate_config_missing_required_field(self):
         """
         GIVEN a config dictionary missing required fields
@@ -420,6 +443,7 @@ class TestConfigValidation:
         # Act & Assert
         with pytest.raises(ConfigurationError, match="Missing required configuration fields"):
             _validate_config(config)
+
 
     def test_validate_config_invalid_time_format(self, full_valid_config: dict):
         """
@@ -435,6 +459,7 @@ class TestConfigValidation:
         with pytest.raises(ConfigurationError, match="Invalid SCHEDULED_RUN_TIME"):
             _validate_config(config)
 
+
     def test_validate_config_invalid_time_type(self, full_valid_config: dict):
         """
         GIVEN a config with a non-string value for SCHEDULED_RUN_TIME
@@ -449,6 +474,7 @@ class TestConfigValidation:
         with pytest.raises(ConfigurationError, match="Invalid SCHEDULED_RUN_TIME"):
             _validate_config(config)
 
+
     def test_validate_all_required_env_vars_success(self, mock_env):
         """
         GIVEN all required environment variables are set
@@ -462,6 +488,7 @@ class TestConfigValidation:
             # Act & Assert
             validate_all_required_env_vars()  # Should not raise
             mock_loader.return_value.get_missing_env_vars.assert_called_once()
+
 
     def test_validate_all_required_env_vars_failure(self):
         """
@@ -481,11 +508,18 @@ class TestConfigValidation:
 class TestCredentialManager:
     """Tests for the CredentialManager class."""
 
+
     @pytest.mark.parametrize(
         "creds_json, expected_error_msg",
         [
-            ('{"type": "service_account", "client_email": "ce", "project_id": "pi"}', "Incomplete service_account"),
-            ('{"type": "authorized_user", "client_id": "ci", "client_secret": "cs"}', "Incomplete authorized_user"),
+            (
+                '{"type": "service_account", "client_email": "ce", "project_id": "pi"}',
+                "Incomplete service_account",
+            ),
+            (
+                '{"type": "authorized_user", "client_id": "ci", "client_secret": "cs"}',
+                "Incomplete authorized_user",
+            ),
             ('{"type": "unsupported"}', "Unsupported credential type"),
             ("{not valid json}", "Invalid credentials JSON"),
         ],
@@ -500,11 +534,18 @@ class TestCredentialManager:
         with pytest.raises(ValueError, match=expected_error_msg):
             manager._parse_and_validate_credentials_json(creds_json)
 
+
     @pytest.mark.parametrize(
         "creds_json, expected_error_msg",
         [
-            ('{"type": "service_account", "client_email": "ce", "project_id": "pi"}', "Incomplete service_account"),
-            ('{"type": "authorized_user", "client_id": "ci", "client_secret": "cs"}', "Incomplete authorized_user"),
+            (
+                '{"type": "service_account", "client_email": "ce", "project_id": "pi"}',
+                "Incomplete service_account",
+            ),
+            (
+                '{"type": "authorized_user", "client_id": "ci", "client_secret": "cs"}',
+                "Incomplete authorized_user",
+            ),
             ('{"type": "unsupported"}', "Unsupported credential type"),
             ("{not valid json}", "Error processing inline credentials: Invalid credentials JSON"),
         ],
@@ -519,6 +560,7 @@ class TestCredentialManager:
         manager = CredentialManager()
         with pytest.raises(ValueError, match=expected_error_msg):
             manager.setup_google_credentials()
+
 
     def test_setup_google_credentials_handles_service_account_json(
         self, mock_env, mock_google_auth, mock_service_account_json
@@ -542,6 +584,7 @@ class TestCredentialManager:
         call_args, _ = mock_google_auth["service_account"].Credentials.from_service_account_info.call_args
         assert call_args[0] == parsed_json
 
+
     def test_setup_service_account_raises_value_error_on_sdk_failure(
         self, mock_env, mock_google_auth, mock_service_account_json
     ):
@@ -560,6 +603,7 @@ class TestCredentialManager:
         # Act & Assert
         with pytest.raises(ValueError, match="Invalid service account credentials: SDK Error"):
             manager._setup_service_account_credentials_from_dict(creds_data)
+
 
     def test_setup_google_credentials_handles_authorized_user_json(
         self, mock_env, mock_google_auth, mock_auth_user_json
@@ -585,6 +629,7 @@ class TestCredentialManager:
             token_uri="https://oauth2.googleapis.com/token",
         )
 
+
     def test_setup_authorized_user_raises_on_sdk_failure(self, mock_env, mock_google_auth, mock_auth_user_json):
         """
         GIVEN the Google SDK fails to create credentials
@@ -602,6 +647,7 @@ class TestCredentialManager:
         # The SDK's exception would be caught by the top-level try/except in the calling method.
         with pytest.raises(Exception, match="SDK Error"):
             manager._setup_user_credentials_from_dict(creds_data)
+
 
     @patch("src.utils.configuration.CredentialManager._parse_and_validate_credentials_json")
     def test_setup_google_credentials_clears_dictionary_on_success(
@@ -628,6 +674,7 @@ class TestCredentialManager:
 
         # Assert
         mock_data_with_clear.clear.assert_called_once()
+
 
     @patch("src.utils.configuration.CredentialManager._parse_and_validate_credentials_json")
     def test_setup_google_credentials_clears_dictionary_on_failure(
@@ -658,6 +705,7 @@ class TestCredentialManager:
             mock_setup.assert_called_once()
             mock_data_with_clear.clear.assert_called_once()
 
+
     def test_setup_google_credentials_handles_invalid_file_path(self, mock_env, caplog):
         """
         GIVEN the environment variable points to a file that does not exist
@@ -673,6 +721,7 @@ class TestCredentialManager:
 
         # Assert
         assert "is not valid JSON or a file path" in caplog.text
+
 
     def test_setup_google_credentials_not_set(self, mock_env, caplog):
         """
@@ -692,6 +741,7 @@ class TestCredentialManager:
 
 class TestLoadConfig:
     """Tests for the main load_config function."""
+
 
     @patch("src.utils.configuration._validate_config")
     @patch("src.utils.configuration.ConfigLoader")
