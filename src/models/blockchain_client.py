@@ -316,15 +316,15 @@ class BlockchainClient:
         return nonce
 
 
-    def _get_gas_prices(self, replace: bool) -> Tuple[int, int]:
+    def _get_gas_prices(self) -> Tuple[int, int]:
         """Get base fee and max priority fee for transaction."""
         # Get current gas prices with detailed logging
         try:
             latest_block_data = self._execute_rpc_call(self.w3.eth.get_block, "latest")
             latest_block = cast(BlockData, latest_block_data)
             base_fee_hex = latest_block["baseFeePerGas"]
-            base_fee = int(base_fee_hex)
-            logger.info(f"Latest block base fee: {base_fee/1e9:.2f} gwei")
+            base_fee = int(base_fee_hex) if isinstance(base_fee_hex, int) else int(str(base_fee_hex), 16)
+            logger.info(f"Latest block base fee: {base_fee / 1e9:.2f} gwei")
 
         # If the base fee cannot be retrieved, use a fallback value
         except Exception as e:
@@ -334,7 +334,7 @@ class BlockchainClient:
         # Try to get the max priority fee
         try:
             max_priority_fee = self._execute_rpc_call(lambda: self.w3.eth.max_priority_fee)
-            logger.info(f"Max priority fee: {max_priority_fee/1e9:.2f} gwei")
+            logger.info(f"Max priority fee: {max_priority_fee / 1e9:.2f} gwei")
 
         # If the max priority fee cannot be retrieved, use a fallback value
         except Exception as e:
@@ -364,7 +364,7 @@ class BlockchainClient:
             max_priority_fee_per_gas = max_priority_fee * 2
             tx_params["maxFeePerGas"] = max_fee_per_gas
             tx_params["maxPriorityFeePerGas"] = max_priority_fee_per_gas
-            logger.info(f"High gas for replacement: {max_fee_per_gas/1e9:.2f} gwei")
+            logger.info(f"High gas for replacement: {max_fee_per_gas / 1e9:.2f} gwei")
 
         # If we are not replacing a pending transaction, use a lower gas price
         else:
@@ -372,7 +372,7 @@ class BlockchainClient:
             max_priority_fee_per_gas = max_priority_fee
             tx_params["maxFeePerGas"] = max_fee_per_gas
             tx_params["maxPriorityFeePerGas"] = max_priority_fee_per_gas
-            logger.info(f"Standard gas: {max_fee_per_gas/1e9:.2f} gwei")
+            logger.info(f"Standard gas: {max_fee_per_gas / 1e9:.2f} gwei")
 
         logger.info(f"Transaction parameters: nonce={nonce}, gas={gas_limit}, chain_id={chain_id}")
         return tx_params
@@ -398,29 +398,6 @@ class BlockchainClient:
         except Exception as e:
             logger.error(f"Failed to build or sign transaction: {str(e)}")
             raise
-
-
-    def _handle_transaction_error(self, error_msg: str) -> None:
-        """Handle and log specific transaction error types."""
-        # If the error message contains "insufficient funds", log the error
-        if "insufficient funds" in error_msg.lower():
-            logger.error("Insufficient funds to pay for gas")
-
-        # If the error message contains "nonce too low", log the error
-        elif "nonce too low" in error_msg.lower():
-            logger.error("Nonce is too low - transaction may have already been sent")
-
-        # If the error message contains "nonce too high", log the error
-        elif "nonce too high" in error_msg.lower():
-            logger.error("Nonce is too high - there may be pending transactions")
-
-        # If the error message contains "gas", log the error
-        elif "gas" in error_msg.lower():
-            logger.error("Gas-related issue - transaction may consume too much gas")
-
-        # If the error message contains "400", log the error
-        elif "400" in error_msg:
-            logger.error("HTTP 400 Bad Request - RPC provider rejected the request")
 
 
     def _send_signed_transaction(self, signed_tx: Any) -> str:
@@ -531,7 +508,7 @@ class BlockchainClient:
         nonce = self._determine_transaction_nonce(sender_address, replace)
 
         # 5. Get gas prices
-        base_fee, max_priority_fee = self._get_gas_prices(replace)
+        base_fee, max_priority_fee = self._get_gas_prices()
 
         # 6. Build transaction parameters
         tx_params = self._build_transaction_params(

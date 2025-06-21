@@ -48,16 +48,20 @@ class EligibilityPipeline:
         required_cols = ["indexer", "eligible_for_indexing_rewards"]
         self.validate_dataframe_structure(input_data_from_bigquery, required_cols)
 
+        # Make a copy to avoid modifying the original DataFrame and prevent SettingWithCopyWarning
+        processed_df = input_data_from_bigquery.copy()
+
+        # Coerce eligibility column to numeric, treating errors (e.g., non-numeric values) as NaN, then fill with 0
+        processed_df["eligible_for_indexing_rewards"] = pd.to_numeric(
+            processed_df["eligible_for_indexing_rewards"], errors="coerce"
+        ).fillna(0)
+
         # 2. Filter data into eligible and ineligible groups
-        eligible_df = input_data_from_bigquery[
-            input_data_from_bigquery["eligible_for_indexing_rewards"] == 1
-        ].copy()
+        eligible_df = processed_df[processed_df["eligible_for_indexing_rewards"] == 1].copy()
 
-        ineligible_df = input_data_from_bigquery[
-            input_data_from_bigquery["eligible_for_indexing_rewards"] == 0
-        ].copy()
+        ineligible_df = processed_df[processed_df["eligible_for_indexing_rewards"] != 1].copy()
 
-        # 3. Generate and save files
+        # 3. Generate and save files, ensuring the original data is used for the raw artifact
         output_date_dir = self.get_date_output_directory(current_date)
         self._generate_files(input_data_from_bigquery, eligible_df, ineligible_df, output_date_dir)
 
@@ -106,6 +110,10 @@ class EligibilityPipeline:
         Args:
             max_age_before_deletion: Maximum age in days before deleting data output
         """
+        if max_age_before_deletion < 0:
+            logger.info("Negative max_age_before_deletion provided; no directories will be removed.")
+            return
+
         today = date.today()
 
         # Check if the output directory exists
@@ -175,7 +183,7 @@ class EligibilityPipeline:
         # If any required columns are missing, raise an error
         if missing_columns:
             raise ValueError(
-                f"DataFrame missing required columns: {missing_columns}. " f"Found columns: {list(df.columns)}"
+                f"DataFrame missing required columns: {missing_columns}. Found columns: {list(df.columns)}"
             )
 
         # If all required columns are present, return True
