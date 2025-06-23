@@ -152,7 +152,7 @@ class TestConfigLoader:
     """Tests for the ConfigLoader class."""
 
 
-    def test_successful_loading_and_substitution(self, temp_config_file: str, mock_env):
+    def test_load_config_succeeds_with_env_var_substitution(self, temp_config_file: str, mock_env):
         """
         GIVEN a valid config file and set environment variables
         WHEN the config is loaded
@@ -173,7 +173,7 @@ class TestConfigLoader:
         assert config["MIN_ONLINE_DAYS"] == 5  # Should be converted to int
 
 
-    def test_optional_integer_fields_default_to_none(self, temp_config_file: str, mock_env):
+    def test_load_config_defaults_optional_integers_to_none(self, temp_config_file: str, mock_env):
         """
         GIVEN a config file where optional integer fields are missing
         WHEN the config is loaded
@@ -191,7 +191,7 @@ class TestConfigLoader:
         assert config["BATCH_SIZE"] is None
 
 
-    def test_raises_error_if_config_missing(self):
+    def test_load_config_fails_if_file_missing(self):
         """
         GIVEN an invalid file path
         WHEN the config is loaded
@@ -201,7 +201,7 @@ class TestConfigLoader:
             ConfigLoader(config_path="/a/fake/path/config.toml").get_flat_config()
 
 
-    def test_raises_error_if_toml_is_malformed(self, tmp_path: Path):
+    def test_load_config_fails_if_toml_is_malformed(self, tmp_path: Path):
         """
         GIVEN a malformed TOML file
         WHEN the config is loaded
@@ -216,7 +216,7 @@ class TestConfigLoader:
             ConfigLoader(config_path=str(config_path)).get_flat_config()
 
 
-    def test_raises_error_if_env_var_missing(self, temp_config_file: str):
+    def test_load_config_fails_if_env_var_is_missing(self, temp_config_file: str):
         """
         GIVEN a config referencing an unset environment variable
         WHEN the config is loaded
@@ -228,7 +228,7 @@ class TestConfigLoader:
             ConfigLoader(config_path=temp_config_file).get_flat_config()
 
 
-    def test_raises_error_for_invalid_integer_value(self, tmp_path: Path):
+    def test_load_config_fails_on_invalid_integer(self, tmp_path: Path):
         """
         GIVEN a config with a non-integer value for a numeric field
         WHEN the config is loaded
@@ -244,7 +244,7 @@ class TestConfigLoader:
             loader.get_flat_config()
 
 
-    def test_get_default_config_path_docker(self, monkeypatch):
+    def test_get_default_config_path_returns_docker_path(self, monkeypatch):
         """
         GIVEN the app is running in a Docker-like environment
         WHEN the default config path is retrieved
@@ -272,7 +272,9 @@ class TestConfigLoader:
         ["src/utils", "src/utils/deep/nested"],
         ids=["from-nested-dir", "from-deeply-nested-dir"],
     )
-    def test_get_default_config_path_local_dev(self, monkeypatch, tmp_path: Path, start_dir_str: str):
+    def test_get_default_config_path_finds_root_config_in_local_dev(
+        self, monkeypatch, tmp_path: Path, start_dir_str: str
+    ):
         """
         GIVEN the app is in a local dev environment (no /app/config.toml)
         WHEN the default config path is retrieved from a nested directory
@@ -306,7 +308,7 @@ class TestConfigLoader:
             assert found_path == str(config_in_root_path)
 
 
-    def test_get_default_config_path_not_found(self, monkeypatch):
+    def test_get_default_config_path_fails_if_not_found(self, monkeypatch):
         """
         GIVEN that no config.toml exists in the path hierarchy
         WHEN the default config path is retrieved
@@ -321,7 +323,7 @@ class TestConfigLoader:
             ConfigLoader()._get_default_config_path()
 
 
-    def test_get_missing_env_vars(self, monkeypatch, temp_config_file: str):
+    def test_get_missing_env_vars_returns_missing_vars(self, monkeypatch, temp_config_file: str):
         """
         GIVEN a config file with environment variable placeholders
         WHEN get_missing_env_vars is called without the env vars set
@@ -348,7 +350,7 @@ class TestConfigLoader:
             (["http://test.com"], ["http://test.com"]),
         ],
     )
-    def test_parse_rpc_urls(self, rpc_input, expected_output):
+    def test_parse_rpc_urls_handles_various_formats(self, rpc_input, expected_output):
         """
         GIVEN various RPC URL list formats (including invalid types)
         WHEN _parse_rpc_urls is called
@@ -364,7 +366,7 @@ class TestConfigLoader:
         assert result == expected_output
 
 
-    def test_empty_string_for_integer_field_is_none(self, tmp_path: Path):
+    def test_load_config_parses_empty_integer_as_none(self, tmp_path: Path):
         """
         GIVEN a config with an empty string for a numeric field
         WHEN the config is loaded
@@ -382,7 +384,7 @@ class TestConfigLoader:
         assert config["MIN_ONLINE_DAYS"] is None
 
 
-    def test_null_value_for_integer_field_is_none(self, tmp_path: Path):
+    def test_load_config_parses_null_integer_as_none(self, tmp_path: Path):
         """
         GIVEN a config with a null value for a numeric field
         WHEN the config is loaded
@@ -404,7 +406,7 @@ class TestConfigValidation:
     """Tests for config validation logic."""
 
 
-    def test_validate_config_success(self, full_valid_config: dict):
+    def test_validate_config_succeeds_on_valid_config(self, full_valid_config: dict):
         """
         GIVEN a complete, valid config dictionary
         WHEN _validate_config is called
@@ -414,7 +416,7 @@ class TestConfigValidation:
         _validate_config(full_valid_config)  # Should not raise
 
 
-    def test_validate_config_handles_zero_values(self, full_valid_config: dict):
+    def test_validate_config_succeeds_with_zero_values(self, full_valid_config: dict):
         """
         GIVEN a config where a required numeric field is 0
         WHEN _validate_config is called
@@ -431,7 +433,7 @@ class TestConfigValidation:
             pytest.fail(f"Validation incorrectly failed for a field with value 0: {e}")
 
 
-    def test_validate_config_missing_required_field(self):
+    def test_validate_config_fails_on_missing_field(self):
         """
         GIVEN a config dictionary missing required fields
         WHEN _validate_config is called
@@ -445,7 +447,7 @@ class TestConfigValidation:
             _validate_config(config)
 
 
-    def test_validate_config_invalid_time_format(self, full_valid_config: dict):
+    def test_validate_config_fails_on_invalid_time_format(self, full_valid_config: dict):
         """
         GIVEN a config with an invalid SCHEDULED_RUN_TIME format
         WHEN _validate_config is called
@@ -460,7 +462,7 @@ class TestConfigValidation:
             _validate_config(config)
 
 
-    def test_validate_config_invalid_time_type(self, full_valid_config: dict):
+    def test_validate_config_fails_on_invalid_time_type(self, full_valid_config: dict):
         """
         GIVEN a config with a non-string value for SCHEDULED_RUN_TIME
         WHEN _validate_config is called
@@ -475,7 +477,7 @@ class TestConfigValidation:
             _validate_config(config)
 
 
-    def test_validate_all_required_env_vars_success(self, mock_env):
+    def test_validate_all_required_env_vars_succeeds_when_all_set(self, mock_env):
         """
         GIVEN all required environment variables are set
         WHEN validate_all_required_env_vars is called
@@ -490,7 +492,7 @@ class TestConfigValidation:
             mock_loader.return_value.get_missing_env_vars.assert_called_once()
 
 
-    def test_validate_all_required_env_vars_failure(self):
+    def test_validate_all_required_env_vars_fails_when_missing(self):
         """
         GIVEN that required environment variables are missing
         WHEN validate_all_required_env_vars is called
@@ -524,7 +526,7 @@ class TestCredentialManager:
             ("{not valid json}", "Invalid credentials JSON"),
         ],
     )
-    def test_parse_and_validate_credentials_json_raises_for_invalid(self, creds_json, expected_error_msg):
+    def test_parse_and_validate_credentials_json_fails_on_invalid_json(self, creds_json, expected_error_msg):
         """
         GIVEN an invalid or incomplete JSON string for credentials
         WHEN _parse_and_validate_credentials_json is called
@@ -535,22 +537,7 @@ class TestCredentialManager:
             manager._parse_and_validate_credentials_json(creds_json)
 
 
-    @pytest.mark.parametrize(
-        "creds_json, expected_error_msg",
-        [
-            (
-                '{"type": "service_account", "client_email": "ce", "project_id": "pi"}',
-                "Incomplete service_account",
-            ),
-            (
-                '{"type": "authorized_user", "client_id": "ci", "client_secret": "cs"}',
-                "Incomplete authorized_user",
-            ),
-            ('{"type": "unsupported"}', "Unsupported credential type"),
-            ("{not valid json}", "Error processing inline credentials: Invalid credentials JSON"),
-        ],
-    )
-    def test_setup_google_credentials_raises_for_invalid_json(self, mock_env, creds_json, expected_error_msg):
+    def test_setup_google_credentials_fails_on_invalid_json(self, mock_env, creds_json, expected_error_msg):
         """
         GIVEN an invalid or incomplete JSON string in the environment variable
         WHEN setup_google_credentials is called
@@ -562,7 +549,7 @@ class TestCredentialManager:
             manager.setup_google_credentials()
 
 
-    def test_setup_google_credentials_handles_service_account_json(
+    def test_setup_google_credentials_succeeds_with_service_account_json(
         self, mock_env, mock_google_auth, mock_service_account_json
     ):
         """
@@ -585,7 +572,7 @@ class TestCredentialManager:
         assert call_args[0] == parsed_json
 
 
-    def test_setup_service_account_raises_value_error_on_sdk_failure(
+    def test_setup_service_account_fails_on_sdk_error(
         self, mock_env, mock_google_auth, mock_service_account_json
     ):
         """
@@ -605,7 +592,7 @@ class TestCredentialManager:
             manager._setup_service_account_credentials_from_dict(creds_data)
 
 
-    def test_setup_google_credentials_handles_authorized_user_json(
+    def test_setup_google_credentials_succeeds_with_authorized_user_json(
         self, mock_env, mock_google_auth, mock_auth_user_json
     ):
         """
@@ -630,7 +617,7 @@ class TestCredentialManager:
         )
 
 
-    def test_setup_authorized_user_raises_on_sdk_failure(self, mock_env, mock_google_auth, mock_auth_user_json):
+    def test_setup_authorized_user_propagates_sdk_error(self, mock_env, mock_google_auth, mock_auth_user_json):
         """
         GIVEN the Google SDK fails to create credentials
         WHEN _setup_user_credentials_from_dict is called
@@ -650,7 +637,7 @@ class TestCredentialManager:
 
 
     @patch("src.utils.configuration.CredentialManager._parse_and_validate_credentials_json")
-    def test_setup_google_credentials_clears_dictionary_on_success(
+    def test_setup_google_credentials_clears_creds_dict_on_success(
         self, mock_parse_and_validate, mock_env, mock_google_auth
     ):
         """
@@ -677,7 +664,7 @@ class TestCredentialManager:
 
 
     @patch("src.utils.configuration.CredentialManager._parse_and_validate_credentials_json")
-    def test_setup_google_credentials_clears_dictionary_on_failure(
+    def test_setup_google_credentials_clears_creds_dict_on_failure(
         self, mock_parse_and_validate, mock_env, mock_service_account_json
     ):
         """
@@ -706,7 +693,7 @@ class TestCredentialManager:
             mock_data_with_clear.clear.assert_called_once()
 
 
-    def test_setup_google_credentials_handles_invalid_file_path(self, mock_env, caplog):
+    def test_setup_google_credentials_logs_warning_for_invalid_path(self, mock_env, caplog):
         """
         GIVEN the environment variable points to a file that does not exist
         WHEN setup_google_credentials is called
@@ -723,7 +710,7 @@ class TestCredentialManager:
         assert "is not valid JSON or a file path" in caplog.text
 
 
-    def test_setup_google_credentials_not_set(self, mock_env, caplog):
+    def test_setup_google_credentials_logs_warning_when_not_set(self, mock_env, caplog):
         """
         GIVEN the GOOGLE_APPLICATION_CREDENTIALS environment variable is not set
         WHEN setup_google_credentials is called
@@ -745,7 +732,7 @@ class TestLoadConfig:
 
     @patch("src.utils.configuration._validate_config")
     @patch("src.utils.configuration.ConfigLoader")
-    def test_load_config_happy_path(self, mock_loader_cls, mock_validate, mock_env):
+    def test_load_config_orchestrates_loading_and_validation(self, mock_loader_cls, mock_validate, mock_env):
         """
         GIVEN a valid configuration environment
         WHEN load_config is called
