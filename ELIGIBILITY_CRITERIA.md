@@ -2,17 +2,17 @@
 ---
 # Upcoming Eligibility Criteria
 
-**We will announce changes to the eligibility criteria in the table below.** Once the change goes live then it will be reflected in the `Indexing Rewards Eligibility Criteria` section of this document.
+**We will announce changes to the eligibility criteria in the table below.** Once the change goes live, it will be reflected in the `Active Eligibility Criteria` section of this document.
 
-| Upcoming Requirement | Justification | Date This Eligibility Requirement Will Be Updated/Introduced (YYYY-MM-DD) |
-|----------------------|---------------|---------------------------------------------------------------------------|
-| **Requirement 1:** | This is a placeholder for future criteria, watch this space to stay informed. We will also announce any upcoming requirements via our existing official channels. | `YYYY-MM-DD` |
+| Upcoming Requirement | Justification | Date Requirement Will Be Updated/Introduced (YYYY-MM-DD) |
+|----------------------|---------------|----------------------------------------------------------|
+| **Example Requirement:** | This is a placeholder for future criteria. Watch this space to stay informed. We will also announce any upcoming requirements via our existing official channels. | `YYYY-MM-DD` |
 
 > **Note**:
-> When announcing new eligibility criteria we will allow a window for indexers to prepare their infrastructure before any new/updated criteria goes live, refer to the `Date This Eligibility Requirement Will Be Updated/Introduced (YYYY-MM-DD)` column to see when upcoming eligibility criteria will merge. We would typically allow a 14 day window after announcing a change before it goes live.
+> When announcing new eligibility criteria we will allow a window for indexers to prepare their infrastructure before any new/updated criteria goes live, refer to the `Date Requirement Will Be Updated/Introduced (YYYY-MM-DD)` column to see when an upcoming eligibility criterion will take effect. We will typically allow a 14-day window after announcing a change before it goes live.
 
 ---
-# The Indexing Rewards Eligibility Criteria:
+# Active Eligibility Criteria
 
 The Service Quality Oracle determines which indexers are eligible to receive indexing rewards using a threshold rewards algorithm that operates by checking indexers meet the following criteria:
 
