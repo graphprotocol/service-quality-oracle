@@ -26,7 +26,7 @@ VALID_KEY_TEST_CASES = [
     VALID_KEY_TEST_CASES,
     ids=[case[0] for case in VALID_KEY_TEST_CASES],
 )
-def test_valid_keys_are_formatted_correctly(test_id, input_key, expected):
+def test_validate_and_format_private_key_succeeds_on_valid_keys(test_id, input_key, expected):
     """
     Test that various valid private key formats are correctly validated and formatted.
     This single test covers multiple valid input scenarios.
@@ -56,7 +56,7 @@ INVALID_FORMAT_TEST_CASES = [
     INVALID_FORMAT_TEST_CASES,
     ids=[case[0] for case in INVALID_FORMAT_TEST_CASES],
 )
-def test_invalid_key_format_raises_error(test_id, invalid_key):
+def test_validate_and_format_private_key_fails_on_invalid_format(test_id, invalid_key):
     """
     Test that keys with an invalid format (incorrect length or non-hex characters)
     raise a KeyValidationError with a specific message.
@@ -85,7 +85,7 @@ INVALID_INPUT_TYPE_CASES = [
     INVALID_INPUT_TYPE_CASES,
     ids=[case[0] for case in INVALID_INPUT_TYPE_CASES],
 )
-def test_invalid_input_type_raises_error(test_id, invalid_input):
+def test_validate_and_format_private_key_fails_on_invalid_input_type(test_id, invalid_input):
     """
     Test that invalid input types (e.g., None, non-string) or an empty string
     raise a KeyValidationError with a specific message.

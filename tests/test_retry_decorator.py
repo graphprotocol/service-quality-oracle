@@ -17,7 +17,7 @@ class CustomError(Exception):
     pass
 
 
-def test_decorated_function_called_once_on_success():
+def test_retry_with_backoff_calls_function_once_on_success():
     """
     Tests that the decorated function is called only once if it succeeds on the first attempt.
     """
@@ -36,7 +36,7 @@ def test_decorated_function_called_once_on_success():
     mock_func.assert_called_once()
 
 
-def test_retries_on_exception_and_reraises():
+def test_retry_with_backoff_retries_and_reraises_on_exception():
     """
     Tests that the decorator retries on a specified exception, up to the max
     number of attempts, and then re-raises the exception.
@@ -59,7 +59,7 @@ def test_retries_on_exception_and_reraises():
     assert mock_func.call_count == max_attempts
 
 
-def test_exception_is_suppressed_with_reraise_false():
+def test_retry_with_backoff_suppresses_exception_with_reraise_false():
     """
     Tests that the final exception is wrapped in a RetryError when reraise is False.
     """
@@ -76,7 +76,7 @@ def test_exception_is_suppressed_with_reraise_false():
         decorated_func()
 
 
-def test_succeeds_after_initial_failures():
+def test_retry_with_backoff_succeeds_after_initial_failures():
     """
     Tests that the decorator stops retrying and returns the result as soon as
     the decorated function succeeds.
@@ -99,7 +99,7 @@ def test_succeeds_after_initial_failures():
     assert mock_func.call_count == 3
 
 
-def test_backoff_timing(monkeypatch):
+def test_retry_with_backoff_engages_exponential_backoff_timing(monkeypatch):
     """
     Tests that there is a measurable delay between retries, confirming that the
     exponential backoff is being engaged.

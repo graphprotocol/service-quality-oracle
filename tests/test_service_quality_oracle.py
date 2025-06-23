@@ -93,7 +93,7 @@ def oracle_context():
         }
 
 
-def test_main_successful_run(oracle_context):
+def test_main_succeeds_on_happy_path(oracle_context):
     """Test the primary successful execution path of the oracle."""
     ctx = oracle_context
     ctx["main"]()
@@ -134,7 +134,7 @@ def test_main_successful_run(oracle_context):
         ("client", "Blockchain Submission"),
     ],
 )
-def test_main_handles_failures_gracefully(oracle_context, failing_component, expected_stage):
+def test_main_handles_failures_at_each_stage(oracle_context, failing_component, expected_stage):
     """Test that failures at different stages are caught, logged, and cause a system exit."""
     ctx = oracle_context
     error = Exception(f"{failing_component} error")
@@ -168,7 +168,7 @@ def test_main_handles_failures_gracefully(oracle_context, failing_component, exp
         assert call_args["error_message"] == str(error)
 
 
-def test_main_with_date_override(oracle_context):
+def test_main_uses_date_override_correctly(oracle_context):
     """Test that providing a date override correctly adjusts the analysis window."""
     ctx = oracle_context
     override = date(2023, 10, 27)
@@ -181,7 +181,7 @@ def test_main_with_date_override(oracle_context):
     assert args == (start_expected, override)
 
 
-def test_main_with_no_eligible_indexers(oracle_context):
+def test_main_succeeds_with_no_eligible_indexers(oracle_context):
     """Test the execution path when the pipeline finds no eligible indexers."""
     ctx = oracle_context
     ctx["pipeline"].process.return_value = ([], ["0xIneligible"])
@@ -199,7 +199,7 @@ def test_main_with_no_eligible_indexers(oracle_context):
     ctx["slack"]["notifier"].send_success_notification.assert_called_once()
 
 
-def test_main_no_slack_configured(oracle_context):
+def test_main_succeeds_when_slack_is_not_configured(oracle_context):
     """Test that the oracle runs without sending notifications if Slack is not configured."""
     ctx = oracle_context
     ctx["slack"]["create"].return_value = None
@@ -212,7 +212,7 @@ def test_main_no_slack_configured(oracle_context):
     ctx["slack"]["notifier"].send_failure_notification.assert_not_called()
 
 
-def test_main_failure_notification_fails(oracle_context):
+def test_main_exits_gracefully_if_failure_notification_fails(oracle_context):
     """Test that the oracle exits gracefully if sending the failure notification also fails."""
     ctx = oracle_context
     ctx["pipeline"].process.side_effect = Exception("Pipeline error")
@@ -229,7 +229,7 @@ def test_main_failure_notification_fails(oracle_context):
     ctx["logger_error"].assert_any_call("Failed to send Slack failure notification: Slack is down", exc_info=True)
 
 
-def test_main_success_notification_fails(oracle_context):
+def test_main_logs_error_but_succeeds_if_success_notification_fails(oracle_context):
     """Test that a failure in sending the success notification is logged but does not cause an exit."""
     ctx = oracle_context
     error = Exception("Slack API error on success")
