@@ -592,9 +592,7 @@ class TestTransactionLogic:
 
         # Assert
         assert tx_hash_hex == mock_tx_hash.hex()
-        blockchain_client.mock_w3_instance.eth.send_raw_transaction.assert_called_once_with(
-            mock_signed_tx.raw
-        )
+        blockchain_client.mock_w3_instance.eth.send_raw_transaction.assert_called_once_with(mock_signed_tx.raw)
         blockchain_client.mock_w3_instance.eth.wait_for_transaction_receipt.assert_called_once_with(
             mock_tx_hash, blockchain_client.tx_timeout_seconds
         )
