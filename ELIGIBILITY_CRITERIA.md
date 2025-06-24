@@ -1,3 +1,4 @@
+This document defines the requirements an Indexer must meet to be eligible for indexing rewards. It includes the current active criteria, a schedule of any upcoming changes, and a log of all historical requirements. The goal is to provide a transparent and predictable set of standards for all network participants.
 
 ---
 
