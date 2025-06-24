@@ -595,9 +595,7 @@ class TestTransactionLogic:
 
         # Assert
         # Check that send_raw_transaction was called with the correct bytes
-        blockchain_client.w3.eth.send_raw_transaction.assert_called_once_with(
-            b"raw_tx_bytes"
-        )
+        blockchain_client.w3.eth.send_raw_transaction.assert_called_once_with(b"raw_tx_bytes")
         # Check that wait_for_transaction_receipt was called with the returned hash
         blockchain_client.w3.eth.wait_for_transaction_receipt.assert_called_once_with(
             mock_tx_hash, MOCK_TX_TIMEOUT_SECONDS
