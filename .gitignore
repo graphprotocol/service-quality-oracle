@@ -1,6 +1,7 @@
 # Ignore sensitive configuration files and credentials
 .env
 config.toml
+docker-compose.override.yml
 
 # Ignore virtual environments
 venv/
