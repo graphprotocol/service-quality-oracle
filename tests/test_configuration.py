@@ -536,7 +536,21 @@ class TestCredentialManager:
         with pytest.raises(ValueError, match=expected_error_msg):
             manager._parse_and_validate_credentials_json(creds_json)
 
-
+    @pytest.mark.parametrize(
+        "creds_json, expected_error_msg",
+        [
+            (
+                '{"type": "service_account", "client_email": "ce", "project_id": "pi"}',
+                "Incomplete service_account",
+            ),
+            (
+                '{"type": "authorized_user", "client_id": "ci", "client_secret": "cs"}',
+                "Incomplete authorized_user",
+            ),
+            ('{"type": "unsupported"}', "Unsupported credential type"),
+            ("{not valid json}", "Invalid credentials JSON"),
+        ],
+    )
     def test_setup_google_credentials_fails_on_invalid_json(self, mock_env, creds_json, expected_error_msg):
         """
         GIVEN an invalid or incomplete JSON string in the environment variable
