@@ -181,7 +181,7 @@ class TestSchedulerStateManagement:
         file_exists,
         expected_date_str,
         scheduler: Scheduler,
-        mock_dependencies: SimpleNamespace
+        mock_dependencies: SimpleNamespace,
     ):
         """Tests get_last_run_date under various conditions."""
         mock_datetime.now.return_value = datetime(2023, 10, 27)
@@ -229,7 +229,9 @@ class TestSchedulerStateManagement:
         mock_dependencies.logger.error.assert_called_once()
 
 
-    def test_save_last_run_date_writes_correctly_to_file(self, scheduler: Scheduler, mock_dependencies: SimpleNamespace):
+    def test_save_last_run_date_writes_correctly_to_file(
+        self, scheduler: Scheduler, mock_dependencies: SimpleNamespace
+    ):
         """Tests that `save_last_run_date` correctly writes the formatted date string to a file."""
         run_date = date(2023, 10, 27)
         expected_dir = "/app/data"
@@ -366,7 +368,9 @@ class TestSchedulerRunLoop:
     """Tests for the main `run` loop of the scheduler."""
 
 
-    def test_run_loop_calls_run_pending_and_sleeps_correctly(self, scheduler: Scheduler, mock_dependencies: SimpleNamespace):
+    def test_run_loop_calls_run_pending_and_sleeps_correctly(
+        self, scheduler: Scheduler, mock_dependencies: SimpleNamespace
+    ):
         """Tests that the run loop correctly calls schedule and sleeps."""
         mock_dependencies.schedule.run_pending.side_effect = [None, None, KeyboardInterrupt]
         scheduler.update_healthcheck = MagicMock()
