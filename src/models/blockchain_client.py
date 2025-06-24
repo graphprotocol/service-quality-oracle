@@ -13,6 +13,7 @@ import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
+from eth_account.datastructures import SignedTransaction
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 from web3 import Web3
 from web3.contract import Contract
@@ -23,8 +24,7 @@ from web3.exceptions import (
     MismatchedABI,
     TransactionNotFound,
 )
-from web3.types import BlockData, ChecksumAddress, HexBytes
-from eth_account.datastructures import SignedTransaction
+from web3.types import BlockData, ChecksumAddress
 
 from src.utils.key_validator import KeyValidationError, validate_and_format_private_key
 from src.utils.retry_decorator import retry_with_backoff
