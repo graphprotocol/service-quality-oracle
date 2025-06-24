@@ -17,6 +17,7 @@ from pathlib import Path
 from src.models.bigquery_provider import BigQueryProvider
 from src.models.blockchain_client import BlockchainClient
 from src.models.eligibility_pipeline import EligibilityPipeline
+from src.utils.circuit_breaker import CircuitBreaker
 from src.utils.configuration import (
     credential_manager,
     load_config,
@@ -44,6 +45,19 @@ def main(run_date_override: date = None):
     stage = "Initialization"
     project_root_path = Path(__file__).resolve().parents[2]
     slack_notifier = None
+
+    # --- Circuit Breaker Initialization and Check ---
+    circuit_breaker_log = project_root_path / "data" / "circuit_breaker.log"
+    circuit_breaker = CircuitBreaker(
+        failure_threshold=3,
+        window_minutes=60,
+        log_file=circuit_breaker_log,
+    )
+
+    if not circuit_breaker.check():
+        # A critical log is already emitted by the breaker.
+        # Exit cleanly (code 0) to prevent Docker from restarting the container.
+        sys.exit(0)
 
     try:
         # Configuration and credentials
@@ -118,6 +132,9 @@ def main(run_date_override: date = None):
         execution_time = time.time() - start_time
         logger.info(f"Oracle run completed successfully in {execution_time:.2f} seconds")
 
+        # On a fully successful run, reset the circuit breaker.
+        circuit_breaker.reset()
+
         if slack_notifier:
             try:
                 batch_count = len(transaction_links) if transaction_links else 0
@@ -133,6 +150,9 @@ def main(run_date_override: date = None):
                 logger.error(f"Failed to send Slack success notification: {e}", exc_info=True)
 
     except Exception as e:
+        # A failure occurred; record it with the circuit breaker.
+        circuit_breaker.record_failure()
+
         execution_time = time.time() - start_time
         error_msg = f"Oracle failed at stage '{stage}': {str(e)}"
         logger.error(error_msg, exc_info=True)
