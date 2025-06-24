@@ -582,7 +582,7 @@ class TestTransactionLogic:
         """
         # Arrange
         mock_signed_tx = MagicMock()
-        mock_signed_tx.rawTransaction = b"raw_tx_bytes"
+        mock_signed_tx.raw = b"raw_tx_bytes"
         mock_tx_hash = b"tx_hash"
         blockchain_client.mock_w3_instance.eth.send_raw_transaction.return_value = mock_tx_hash
         blockchain_client.mock_w3_instance.eth.wait_for_transaction_receipt.return_value = {"status": 1}
@@ -593,10 +593,10 @@ class TestTransactionLogic:
         # Assert
         assert tx_hash_hex == mock_tx_hash.hex()
         blockchain_client.mock_w3_instance.eth.send_raw_transaction.assert_called_once_with(
-            mock_signed_tx.rawTransaction
+            mock_signed_tx.raw
         )
         blockchain_client.mock_w3_instance.eth.wait_for_transaction_receipt.assert_called_once_with(
-            mock_tx_hash, MOCK_TX_TIMEOUT_SECONDS
+            mock_tx_hash, blockchain_client.tx_timeout_seconds
         )
 
 
