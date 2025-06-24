@@ -578,24 +578,32 @@ class TestTransactionLogic:
 
     def test_send_signed_transaction_succeeds_on_happy_path(self, blockchain_client: BlockchainClient):
         """
-        Tests that a signed transaction is sent and its hash is returned on success.
+        Tests that _send_signed_transaction successfully sends a transaction
+        and waits for a successful receipt.
         """
         # Arrange
-        mock_signed_tx = MagicMock()
-        mock_signed_tx.raw = b"raw_tx_bytes"
         mock_tx_hash = b"tx_hash"
-        blockchain_client.mock_w3_instance.eth.send_raw_transaction.return_value = mock_tx_hash
-        blockchain_client.mock_w3_instance.eth.wait_for_transaction_receipt.return_value = {"status": 1}
+        blockchain_client.w3.eth.send_raw_transaction.return_value = mock_tx_hash
+        blockchain_client.w3.eth.wait_for_transaction_receipt.return_value = {"status": 1}
+
+        # Mock the SignedTransaction object with the .raw_transaction property
+        mock_signed_tx = MagicMock()
+        type(mock_signed_tx).raw_transaction = PropertyMock(return_value=b"raw_tx_bytes")
 
         # Act
-        tx_hash_hex = blockchain_client._send_signed_transaction(mock_signed_tx)
+        tx_hash = blockchain_client._send_signed_transaction(mock_signed_tx)
 
         # Assert
-        assert tx_hash_hex == mock_tx_hash.hex()
-        blockchain_client.mock_w3_instance.eth.send_raw_transaction.assert_called_once_with(mock_signed_tx.raw)
-        blockchain_client.mock_w3_instance.eth.wait_for_transaction_receipt.assert_called_once_with(
-            mock_tx_hash, blockchain_client.tx_timeout_seconds
+        # Check that send_raw_transaction was called with the correct bytes
+        blockchain_client.w3.eth.send_raw_transaction.assert_called_once_with(
+            b"raw_tx_bytes"
         )
+        # Check that wait_for_transaction_receipt was called with the returned hash
+        blockchain_client.w3.eth.wait_for_transaction_receipt.assert_called_once_with(
+            mock_tx_hash, MOCK_TX_TIMEOUT_SECONDS
+        )
+        # Check that the final hash is correct
+        assert tx_hash == mock_tx_hash.hex()
 
 
     def test_send_signed_transaction_fails_if_reverted(self, blockchain_client: BlockchainClient):
