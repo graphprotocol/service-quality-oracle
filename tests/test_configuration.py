@@ -536,6 +536,7 @@ class TestCredentialManager:
         with pytest.raises(ValueError, match=expected_error_msg):
             manager._parse_and_validate_credentials_json(creds_json)
 
+
     @pytest.mark.parametrize(
         "creds_json, expected_error_msg",
         [
@@ -586,9 +587,7 @@ class TestCredentialManager:
         assert call_args[0] == parsed_json
 
 
-    def test_setup_service_account_fails_on_sdk_error(
-        self, mock_env, mock_google_auth, mock_service_account_json
-    ):
+    def test_setup_service_account_fails_on_sdk_error(self, mock_env, mock_google_auth, mock_service_account_json):
         """
         GIVEN the Google SDK fails to create credentials from service account info
         WHEN _setup_service_account_credentials_from_dict is called

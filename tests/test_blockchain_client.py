@@ -375,7 +375,9 @@ class TestTransactionLogic:
         blockchain_client.mock_w3_instance.eth.get_block.assert_called_once_with("pending", full_transactions=True)
 
 
-    def test_determine_transaction_nonce_falls_back_to_latest_on_nonce_gap(self, blockchain_client: BlockchainClient):
+    def test_determine_transaction_nonce_falls_back_to_latest_on_nonce_gap(
+        self, blockchain_client: BlockchainClient
+    ):
         """
         Tests that nonce determination falls back to the latest nonce
         if no pending txs are found but a nonce gap exists.

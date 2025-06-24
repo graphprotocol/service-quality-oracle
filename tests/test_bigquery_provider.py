@@ -67,9 +67,7 @@ class TestInitialization:
     """Tests for the __init__ method."""
 
 
-    def test_init_sets_bigquery_options_and_instance_vars(
-        self, provider: BigQueryProvider, mock_bpd: MagicMock
-    ):
+    def test_init_sets_bigquery_options_and_instance_vars(self, provider: BigQueryProvider, mock_bpd: MagicMock):
         """
         Tests that BigQueryProvider initializes correctly, setting BigQuery options and instance variables.
         """
