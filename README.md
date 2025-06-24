@@ -128,7 +128,6 @@ bandit -r src/
 ## TODO List (only outstanding TODOs)
 
 ### 1. Testing
-- [ ] Create integration tests for the entire pipeline
 - [ ] Security review of code and dependencies
 
 ### 2. Documentation
