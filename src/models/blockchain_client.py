@@ -413,22 +413,23 @@ class BlockchainClient:
         """
         # Try to send the transaction and wait for the receipt
         try:
-            tx_hash = self._execute_rpc_call(self.w3.eth.send_raw_transaction, signed_tx.raw)
-            tx_hash_hex = tx_hash.hex()
-            logger.info(f"Transaction sent with hash: {tx_hash_hex}")
+            # Send the signed transaction
+            tx_hash = self._execute_rpc_call(self.w3.eth.send_raw_transaction, signed_tx.raw_transaction)
+            logger.info(f"Transaction sent with hash: {tx_hash.hex()}")
 
+            # Wait for the transaction receipt
             receipt = self._execute_rpc_call(
                 self.w3.eth.wait_for_transaction_receipt, tx_hash, self.tx_timeout_seconds
             )
 
             # If the transaction was successful, log the success and return the hash
             if receipt["status"] == 1:
-                logger.info(f"Transaction successful: {self.block_explorer_url}/tx/{tx_hash_hex}")
-                return tx_hash_hex
+                logger.info(f"Transaction successful: {self.block_explorer_url}/tx/{tx_hash.hex()}")
+                return tx_hash.hex()
 
             # If the transaction failed, handle the error
             else:
-                error_msg = f"Transaction failed: {self.block_explorer_url}/tx/{tx_hash_hex}"
+                error_msg = f"Transaction failed: {self.block_explorer_url}/tx/{tx_hash.hex()}"
                 logger.error(error_msg)
                 raise Exception(error_msg)
 
@@ -436,7 +437,7 @@ class BlockchainClient:
         except Exception as e:
             error_msg = f"Error sending transaction or waiting for receipt: {str(e)}"
             logger.error(error_msg)
-            raise Exception(error_msg) from e
+            raise Exception(error_msg)
 
         # This part should be unreachable, but it's here for safety.
         raise Exception("Transaction failed for an unknown reason.")
