@@ -10,8 +10,8 @@ pytz==2025.2
 tenacity==8.5.0
 
 # Google Cloud BigQuery for data processing
-google-cloud-bigquery==3.26.0
-bigframes==1.42.0
+google-cloud-bigquery==3.34.0
+bigframes==2.8.0
 
 # Data processing and validation
 pandas==2.2.3
