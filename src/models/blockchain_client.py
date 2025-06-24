@@ -23,7 +23,7 @@ from web3.exceptions import (
     MismatchedABI,
     TransactionNotFound,
 )
-from web3.types import BlockData, ChecksumAddress
+from web3.types import BlockData, ChecksumAddress, HexBytes, SignedTransaction
 
 from src.utils.key_validator import KeyValidationError, validate_and_format_private_key
 from src.utils.retry_decorator import retry_with_backoff
@@ -400,7 +400,7 @@ class BlockchainClient:
             raise
 
 
-    def _send_signed_transaction(self, signed_tx: Any) -> str:
+    def _send_signed_transaction(self, signed_tx: SignedTransaction) -> HexBytes:
         """
         Send a signed transaction and wait for the receipt.
 
@@ -412,7 +412,7 @@ class BlockchainClient:
         """
         # Try to send the transaction and wait for the receipt
         try:
-            tx_hash = self._execute_rpc_call(self.w3.eth.send_raw_transaction, signed_tx.rawTransaction)
+            tx_hash = self._execute_rpc_call(self.w3.eth.send_raw_transaction, signed_tx.raw)
             tx_hash_hex = tx_hash.hex()
             logger.info(f"Transaction sent with hash: {tx_hash_hex}")
 
