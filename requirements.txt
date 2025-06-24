@@ -2,7 +2,7 @@
 # Requires Python 3.9+
 
 # Configuration management
-tomli==2.2.1  # TOML support for Python < 3.11
+tomli==2.2.1
 
 # Scheduling and resilience
 schedule==1.2.2
@@ -16,29 +16,28 @@ bigframes==1.42.0
 # Data processing and validation
 pandas==2.2.3
 pandera==0.20.4
-numpy>=2.0.0  # Added as pandas dependency
+numpy==2.3.1
 
 # Blockchain integration - Latest compatible versions
 web3==7.12.0
-eth-account>=0.13.0
-eth-typing>=5.2.0
+eth-account==0.13.7
+eth-typing==5.2.1
 
 # GraphQL and subgraph integration (for future subgraph functionality)
 gql==3.5.2
 
 # HTTP and API
 requests==2.32.3
-aiohttp>=3.9.0  # For async HTTP requests (used by web3)
+aiohttp==3.12.13
 
 # Development/Testing
-pytest>=8.0.0
-pytest-cov>=6.0.0
-pytest-mock>=3.0.0
-pytest-snapshot>=0.9.0
-mypy>=1.0.0
-types-pytz  # Type stubs for pytz
-types-requests  # Type stubs for requests
+pytest==8.4.1
+pytest-cov==6.2.1
+pytest-mock==3.14.1
+pytest-snapshot==0.9.0
+mypy==1.16.1
+types-pytz==2025.2.0.20250516
+types-requests==2.32.4.20250611
 
 # Linting and formatting
-ruff>=0.6.0
-pip==25.1
+ruff==0.12.0
