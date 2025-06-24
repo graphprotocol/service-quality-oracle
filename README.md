@@ -61,6 +61,10 @@ The application follows a clear data flow, managed by a daily scheduler:
 
 6. **Notifications (`slack_notifier.py`)**: Throughout the process, status updates (success, failure, warnings) are sent to Slack.
 
+## Architecture
+
+For a more detailed explanation of key architectural decisions, such as the RPC provider failover and circuit breaker logic, please see the [Technical Design Document](./docs/technical-design.md).
+
 ## CI/CD Pipeline
 
 Automated quality checks and security scanning via GitHub Actions. Run `./scripts/ruff_check_format_assets.sh` locally before pushing.
