@@ -23,7 +23,8 @@ from web3.exceptions import (
     MismatchedABI,
     TransactionNotFound,
 )
-from web3.types import BlockData, ChecksumAddress, HexBytes, SignedTransaction
+from web3.types import BlockData, ChecksumAddress, HexBytes
+from eth_account.datastructures import SignedTransaction
 
 from src.utils.key_validator import KeyValidationError, validate_and_format_private_key
 from src.utils.retry_decorator import retry_with_backoff
@@ -400,7 +401,7 @@ class BlockchainClient:
             raise
 
 
-    def _send_signed_transaction(self, signed_tx: SignedTransaction) -> HexBytes:
+    def _send_signed_transaction(self, signed_tx: SignedTransaction) -> str:
         """
         Send a signed transaction and wait for the receipt.
 
