@@ -44,13 +44,13 @@ class CircuitBreaker:
         # If the log file does not exist, return an empty list
         if not self.log_file.exists():
             return []
-        
+
         # If the log file exists, read and parse all timestamps
         try:
             with self.log_file.open("r") as f:
                 timestamps = [datetime.fromisoformat(line.strip()) for line in f if line.strip()]
             return timestamps
-        
+
         # If there is an error reading or parsing the log file, log the error and return an empty list
         except (IOError, ValueError) as e:
             logger.error(f"Error reading or parsing circuit breaker log file {self.log_file}: {e}")
@@ -105,7 +105,7 @@ class CircuitBreaker:
 
             # Log the success
             logger.warning("Circuit breaker has recorded a failure.")
-        
+
         # If there is an error appending the timestamp to the log file, log the error
         except IOError as e:
             logger.error(f"Failed to record failure to circuit breaker log {self.log_file}: {e}")

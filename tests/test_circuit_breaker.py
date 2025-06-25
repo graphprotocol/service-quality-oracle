@@ -1,6 +1,7 @@
 """
 Unit tests for the CircuitBreaker utility.
 """
+
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -12,7 +13,7 @@ from src.utils.circuit_breaker import CircuitBreaker
 @pytest.fixture
 def mock_path():
     """Fixture to mock the Path object for file system interactions."""
-    with patch("src.utils.circuit_breaker.Path") as mock_path_cls:
+    with patch("src.utils.circuit_breaker.Path"):
         mock_instance = MagicMock()
         mock_instance.exists.return_value = False
         mock_instance.open = mock_open()
@@ -117,4 +118,4 @@ def test_reset_does_nothing_if_log_file_does_not_exist(breaker: CircuitBreaker, 
     """
     mock_path.exists.return_value = False
     breaker.reset()
-    mock_path.unlink.assert_not_called() 
+    mock_path.unlink.assert_not_called()
