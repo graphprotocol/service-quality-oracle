@@ -118,7 +118,7 @@ def main(run_date_override: date = None):
             tx_timeout_seconds=config["TX_TIMEOUT_SECONDS"],
             slack_notifier=slack_notifier,
         )
-        transaction_links = blockchain_client.batch_allow_indexers_issuance_eligibility(
+        transaction_links, rpc_provider_used = blockchain_client.batch_allow_indexers_issuance_eligibility(
             indexer_addresses=eligible_indexers,
             private_key=config["PRIVATE_KEY"],
             chain_id=config["BLOCKCHAIN_CHAIN_ID"],
@@ -144,6 +144,7 @@ def main(run_date_override: date = None):
                     execution_time=execution_time,
                     transaction_links=transaction_links,
                     batch_count=batch_count,
+                    rpc_provider_used=rpc_provider_used,
                 )
             except Exception as e:
                 logger.error(f"Failed to send Slack success notification: {e}", exc_info=True)

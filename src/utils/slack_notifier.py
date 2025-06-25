@@ -90,6 +90,7 @@ class SlackNotifier:
         execution_time: Optional[float] = None,
         transaction_links: Optional[List[str]] = None,
         batch_count: Optional[int] = None,
+        rpc_provider_used: Optional[str] = None,
     ) -> bool:
         """
         Send a success notification to Slack.
@@ -100,6 +101,7 @@ class SlackNotifier:
             execution_time: Execution time in seconds (optional)
             transaction_links: List of blockchain transaction links (optional)
             batch_count: Number of transaction batches sent (optional)
+            rpc_provider_used: The RPC provider URL that was used for the successful transaction (optional)
 
         Returns:
             bool: True if notification was sent successfully
@@ -121,6 +123,10 @@ class SlackNotifier:
         # Add batch information if provided
         if batch_count:
             fields.append({"title": "Transaction Batches", "value": str(batch_count), "short": True})
+
+        # Add RPC provider information if provided
+        if rpc_provider_used:
+            fields.append({"title": "RPC Provider", "value": rpc_provider_used, "short": True})
 
         # Add transaction links if provided
         if transaction_links:
