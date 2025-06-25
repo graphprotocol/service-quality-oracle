@@ -167,17 +167,16 @@ class BlockchainClient:
         while True:
             try:
                 # Add retry logic with backoff for the specific function call
-
-
                 @retry_with_backoff(max_attempts=3, exceptions=RPC_FAILOVER_EXCEPTIONS)
                 def do_call():
                     return func(*args, **kwargs)
 
                 return do_call()
 
-            # If we get an exception, log the error and switch to the next RPC provider
+            # If we get an exception after all retries, log the error and switch to the next RPC provider
             except RPC_FAILOVER_EXCEPTIONS as e:
-                logger.warning(f"RPC call failed with provider at index {self.current_rpc_index}: {e}")
+                current_provider = self.rpc_providers[self.current_rpc_index]
+                logger.warning(f"RPC call failed with provider at index {self.current_rpc_index} ({current_provider}): {e}")
                 self._get_next_rpc_provider()
 
                 # If we have tried all RPC providers, log the error and raise an exception
@@ -580,7 +579,7 @@ class BlockchainClient:
         batch_size: int,
         replace: bool = False,
         data_bytes: bytes = b"",
-    ) -> List[str]:
+    ) -> tuple[List[str], str]:
         """
         Batches indexer addresses and sends multiple transactions for issuance eligibility.
 
@@ -598,12 +597,15 @@ class BlockchainClient:
             data_bytes: Additional data for the transaction.
 
         Returns:
-            A list of transaction hashes for all the batches sent.
+            A tuple containing:
+            - A list of transaction hashes for all the batches sent
+            - The RPC provider URL that was used for the transactions
         """
         # Ensure there are indexer addresses to process
         if not indexer_addresses:
             logger.warning("No indexer addresses provided.")
-            return []
+            current_rpc_provider = self.rpc_providers[self.current_rpc_index]
+            return [], current_rpc_provider
 
         logger.info(
             f"Starting batch transaction for {len(indexer_addresses)} indexers, with batch size {batch_size}."
@@ -633,4 +635,6 @@ class BlockchainClient:
                 logger.error(f"Failed to send batch {i // batch_size + 1}. Halting batch processing. Error: {e}")
                 raise
 
-        return transaction_hashes
+        # Return transaction hashes and the current RPC provider used
+        current_rpc_provider = self.rpc_providers[self.current_rpc_index]
+        return transaction_hashes, current_rpc_provider

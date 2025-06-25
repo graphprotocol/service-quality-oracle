@@ -808,7 +808,7 @@ class TestOrchestrationAndBatching:
 
         # Act
         # Use a batch size of 2, which should result in 3 calls (2, 2, 1)
-        tx_hashes = blockchain_client.batch_allow_indexers_issuance_eligibility(
+        tx_hashes, rpc_provider = blockchain_client.batch_allow_indexers_issuance_eligibility(
             indexer_addresses=addresses,
             private_key=MOCK_PRIVATE_KEY,
             chain_id=1,
@@ -818,6 +818,7 @@ class TestOrchestrationAndBatching:
 
         # Assert
         assert len(tx_hashes) == 3
+        assert rpc_provider in blockchain_client.rpc_providers
         assert blockchain_client.send_transaction_to_allow_indexers.call_count == 3
 
         # Check the contents of each call
@@ -861,7 +862,7 @@ class TestOrchestrationAndBatching:
         blockchain_client.send_transaction_to_allow_indexers = MagicMock()
 
         # Act
-        tx_hashes = blockchain_client.batch_allow_indexers_issuance_eligibility(
+        tx_hashes, rpc_provider = blockchain_client.batch_allow_indexers_issuance_eligibility(
             indexer_addresses=[],
             private_key=MOCK_PRIVATE_KEY,
             chain_id=1,
@@ -871,4 +872,5 @@ class TestOrchestrationAndBatching:
 
         # Assert
         assert tx_hashes == []
+        assert rpc_provider in blockchain_client.rpc_providers
         blockchain_client.send_transaction_to_allow_indexers.assert_not_called()
