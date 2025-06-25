@@ -167,6 +167,8 @@ class BlockchainClient:
         while True:
             try:
                 # Add retry logic with backoff for the specific function call
+
+
                 @retry_with_backoff(max_attempts=3, exceptions=RPC_FAILOVER_EXCEPTIONS)
                 def do_call():
                     return func(*args, **kwargs)
@@ -176,7 +178,9 @@ class BlockchainClient:
             # If we get an exception after all retries, log the error and switch to the next RPC provider
             except RPC_FAILOVER_EXCEPTIONS as e:
                 current_provider = self.rpc_providers[self.current_rpc_index]
-                logger.warning(f"RPC call failed with provider at index {self.current_rpc_index} ({current_provider}): {e}")
+                logger.warning(
+                    f"RPC call failed with provider at index {self.current_rpc_index} ({current_provider}): {e}"
+                )
                 self._get_next_rpc_provider()
 
                 # If we have tried all RPC providers, log the error and raise an exception

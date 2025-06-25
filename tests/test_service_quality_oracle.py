@@ -73,7 +73,10 @@ def oracle_context():
         mock_pipeline.process.return_value = (["0xEligible"], ["0xIneligible"])
 
         mock_client = mock_client_cls.return_value
-        mock_client.batch_allow_indexers_issuance_eligibility.return_value = (["http://tx-link"], "https://test-rpc.com")
+        mock_client.batch_allow_indexers_issuance_eligibility.return_value = (
+            ["http://tx-link"],
+            "https://test-rpc.com",
+        )
 
         # Configure Slack notifier
         mock_slack_notifier = mock_create_slack.return_value
