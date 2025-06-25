@@ -618,7 +618,7 @@ class TestTransactionLogic:
 
         # Act & Assert
         with pytest.raises(
-            Exception, match=f"Transaction failed: {MOCK_BLOCK_EXPLORER_URL}/tx/{mock_tx_hash.hex()}"
+            Exception, match=f"Transaction failed: {MOCK_BLOCK_EXPLORER_URL}/tx/0x{mock_tx_hash.hex()}"
         ):
             blockchain_client._send_signed_transaction(mock_signed_tx)
 
