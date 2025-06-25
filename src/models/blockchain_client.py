@@ -418,7 +418,7 @@ class BlockchainClient:
         try:
             # Send the signed transaction
             tx_hash = self._execute_rpc_call(self.w3.eth.send_raw_transaction, signed_tx.raw_transaction)
-            logger.info(f"Transaction sent with hash: {tx_hash.hex()}")
+            logger.info(f"Transaction sent with hash: 0x{tx_hash.hex()}")
 
             # Wait for the transaction receipt
             receipt = self._execute_rpc_call(
@@ -427,12 +427,12 @@ class BlockchainClient:
 
             # If the transaction was successful, log the success and return the hash
             if receipt["status"] == 1:
-                logger.info(f"Transaction successful: {self.block_explorer_url}/tx/{tx_hash.hex()}")
+                logger.info(f"Transaction successful: {self.block_explorer_url}/tx/0x{tx_hash.hex()}")
                 return tx_hash.hex()
 
             # If the transaction failed, handle the error
             else:
-                error_msg = f"Transaction failed: {self.block_explorer_url}/tx/{tx_hash.hex()}"
+                error_msg = f"Transaction failed: {self.block_explorer_url}/tx/0x{tx_hash.hex()}"
                 logger.error(error_msg)
                 raise Exception(error_msg)
 
@@ -631,6 +631,7 @@ class BlockchainClient:
                     replace,
                     data_bytes,
                 )
+                tx_hash = "0x" + tx_hash
                 transaction_hashes.append(tx_hash)
                 logger.info(f"Successfully sent batch {i // batch_size + 1}, tx_hash: {tx_hash}")
 
