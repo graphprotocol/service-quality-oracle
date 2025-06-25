@@ -51,6 +51,7 @@ def oracle_context():
         patch("src.models.bigquery_provider.BigQueryProvider") as mock_bq_provider_cls,
         patch("src.models.eligibility_pipeline.EligibilityPipeline") as mock_pipeline_cls,
         patch("src.models.blockchain_client.BlockchainClient") as mock_client_cls,
+        patch("src.utils.circuit_breaker.CircuitBreaker") as mock_circuit_breaker_cls,
         patch("src.models.service_quality_oracle.Path") as mock_path_cls,
         patch("logging.Logger.error") as mock_logger_error,
     ):
@@ -59,6 +60,10 @@ def oracle_context():
         mock_path_instance = MagicMock()
         mock_path_instance.resolve.return_value.parents.__getitem__.return_value = mock_project_root
         mock_path_cls.return_value = mock_path_instance
+
+        # Configure mock CircuitBreaker to always return True on check
+        mock_breaker_instance = mock_circuit_breaker_cls.return_value
+        mock_breaker_instance.check.return_value = True
 
         # Configure instance return values for mocked classes
         mock_bq_provider = mock_bq_provider_cls.return_value
@@ -69,6 +74,9 @@ def oracle_context():
 
         mock_client = mock_client_cls.return_value
         mock_client.batch_allow_indexers_issuance_eligibility.return_value = ["http://tx-link"]
+
+        # Configure Slack notifier
+        mock_slack_notifier = mock_create_slack.return_value
 
         # Reload module so that patched objects are used inside it
         if "src.models.service_quality_oracle" in sys.modules:
@@ -81,13 +89,14 @@ def oracle_context():
             "main": sqo.main,
             "setup_creds": mock_setup_creds,
             "load_config": mock_load_config,
-            "slack": {"create": mock_create_slack, "notifier": mock_create_slack.return_value},
+            "slack": {"create": mock_create_slack, "notifier": mock_slack_notifier},
             "bq_provider_cls": mock_bq_provider_cls,
             "bq_provider": mock_bq_provider,
             "pipeline_cls": mock_pipeline_cls,
             "pipeline": mock_pipeline,
             "client_cls": mock_client_cls,
             "client": mock_client,
+            "circuit_breaker": mock_breaker_instance,
             "project_root": mock_project_root,
             "logger_error": mock_logger_error,
         }
@@ -119,6 +128,8 @@ def test_main_succeeds_on_happy_path(oracle_context):
         replace=True,
     )
 
+    ctx["circuit_breaker"].reset.assert_called_once()
+    ctx["circuit_breaker"].record_failure.assert_not_called()
     ctx["slack"]["notifier"].send_success_notification.assert_called_once()
 
 
@@ -156,6 +167,7 @@ def test_main_handles_failures_at_each_stage(oracle_context, failing_component, 
 
     assert excinfo.value.code == 1, "The application should exit with status code 1 on failure."
 
+    ctx["circuit_breaker"].record_failure.assert_called_once()
     ctx["logger_error"].assert_any_call(f"Oracle failed at stage '{expected_stage}': {error}", exc_info=True)
 
     # If config loading or Slack notifier creation fails, no notification can be sent.
@@ -196,6 +208,7 @@ def test_main_succeeds_with_no_eligible_indexers(oracle_context):
         batch_size=MOCK_CONFIG["BATCH_SIZE"],
         replace=True,
     )
+    ctx["circuit_breaker"].reset.assert_called_once()
     ctx["slack"]["notifier"].send_success_notification.assert_called_once()
 
 
@@ -208,6 +221,7 @@ def test_main_succeeds_when_slack_is_not_configured(oracle_context):
 
     ctx["load_config"].assert_called_once()
     ctx["client"].batch_allow_indexers_issuance_eligibility.assert_called_once()
+    ctx["circuit_breaker"].reset.assert_called_once()
     ctx["slack"]["notifier"].send_success_notification.assert_not_called()
     ctx["slack"]["notifier"].send_failure_notification.assert_not_called()
 
@@ -222,6 +236,7 @@ def test_main_exits_gracefully_if_failure_notification_fails(oracle_context):
         ctx["main"]()
 
     assert excinfo.value.code == 1
+    ctx["circuit_breaker"].record_failure.assert_called_once()
     ctx["logger_error"].assert_any_call(
         "Oracle failed at stage 'Data Processing and Artifact Generation': Pipeline error",
         exc_info=True,
@@ -237,6 +252,7 @@ def test_main_logs_error_but_succeeds_if_success_notification_fails(oracle_conte
 
     ctx["main"]()
 
+    ctx["circuit_breaker"].reset.assert_called_once()
     ctx["logger_error"].assert_called_once_with(
         f"Failed to send Slack success notification: {error}", exc_info=True
     )

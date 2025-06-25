@@ -13,17 +13,24 @@ from tenacity import wait_fixed
 from src.models.scheduler import Scheduler
 from src.utils.configuration import ConfigurationError
 
-# Because the Scheduler imports the oracle module at the top level, we need to mock it
-# before the scheduler is imported for any test.
-sys.modules["src.models.service_quality_oracle"] = MagicMock()
-
-
 MOCK_CONFIG = {
     "SLACK_WEBHOOK_URL": "http://fake.slack.com",
     "SCHEDULED_RUN_TIME": "10:00",
 }
 
 MOCK_CONFIG_NO_SLACK = {"SCHEDULED_RUN_TIME": "10:00", "SLACK_WEBHOOK_URL": None}
+
+
+@pytest.fixture(autouse=True)
+def mock_oracle_module():
+    """
+    Fixture to mock the entire service_quality_oracle module.
+    This prevents the real module from being loaded during scheduler tests,
+    isolating them and preventing side effects. `autouse=True` ensures it runs
+    for every test in this file.
+    """
+    with patch.dict(sys.modules, {"src.models.service_quality_oracle": MagicMock()}):
+        yield
 
 
 @pytest.fixture
