@@ -10,32 +10,47 @@ The following diagram illustrates the sequence of events when all RPC providers 
 
 ```mermaid
 sequenceDiagram
-    participant main as Main Oracle
-    participant client as BlockchainClient
-    participant circuit_breaker as CircuitBreaker
-    participant slack as SlackNotifier
+    # Setup column titles
+    participant main_oracle as service_quality_oracle.py
+    participant blockchain_client as blockchain_client.py
+    participant circuit_breaker as circuit_breaker.py
+    participant slack_notifier as slack_notifier.py
 
-    main->>client: batch_allow_indexers_issuance_eligibility()
-    activate client
+    # Attempt function call
+    main_oracle->>blockchain_client: batch_allow_indexers_issuance_eligibility()
 
+    # Describe failure loop inside the blockchain_client module
+    activate blockchain_client
     alt RPC Loop (for each provider)
-        client->>client: _execute_rpc_call() with provider A
-        note right of client: Fails after 5 retries
-        client-->>client: raises ConnectionError
 
-        note right of client: Catches error, logs rotation
-        
-        client->>client: _execute_rpc_call() with provider B
-        note right of client: Fails after 5 retries
-        client-->>client: raises ConnectionError
+        # Attempt RPC call 
+        blockchain_client->>blockchain_client: _execute_rpc_call() with provider A
+        note right of blockchain_client: Fails after 5 retries
 
-        note right of client: All providers tried and failed
+        # Log failure
+        blockchain_client-->>blockchain_client: raises ConnectionError
+        note right of blockchain_client: Catches error, logs rotation
+
+        # Retry RPC call
+        blockchain_client->>blockchain_client: _execute_rpc_call() with provider B
+        note right of blockchain_client: Fails after 5 retries
+
+        # Log final failure
+        blockchain_client-->>blockchain_client: raises ConnectionError
+        note right of blockchain_client: All providers tried and failed
     end
-    
-    client-->>main: raises Final ConnectionError
-    deactivate client
 
-    main->>circuit_breaker: record_failure()
-    main->>slack: send_failure_notification()
-    note right of main: sys.exit(1) causes Docker restart
-``` 
+    # Raise error back to main_oracle oracle and exit blockchain_client module
+    blockchain_client-->>main_oracle: raises Final ConnectionError
+    deactivate blockchain_client
+
+    # Take note of the failure in the circuit breaker, which can break the restart loop if triggered enough times in a short duration
+    main_oracle->>circuit_breaker: record_failure()
+
+    # Notify of the RPC failure in slack
+    main_oracle->>slack_notifier: send_failure_notification()
+
+    # Document restart process
+    note right of main_oracle: sys.exit(1)
+    note right of main_oracle: Docker will restart. CircuitBreaker can halt via sys.exit(0) 
+```
