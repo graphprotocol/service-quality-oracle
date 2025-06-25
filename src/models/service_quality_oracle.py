@@ -54,9 +54,8 @@ def main(run_date_override: date = None):
         log_file=circuit_breaker_log,
     )
 
+    # If circuit_breaker.check returns False, exit cleanly (code 0) to prevent Docker container restart.
     if not circuit_breaker.check():
-        # A critical log is already emitted by the breaker.
-        # Exit cleanly (code 0) to prevent Docker from restarting the container.
         sys.exit(0)
 
     try:
