@@ -1,7 +1,6 @@
 # Ignore sensitive configuration files and credentials
 .env
 config.toml
-docker-compose.override.yml
 
 # Ignore virtual environments
 venv/
@@ -21,3 +20,6 @@ contracts/contract.abi.json
 /src/utils/__pycache__
 /src/models/__pycache__
 .coverage
+
+# Ignore docker compose override file
+docker-compose.override.yml
