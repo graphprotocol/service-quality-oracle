@@ -1,42 +1,47 @@
+This document defines the requirements an Indexer must meet to be eligible for indexing rewards. It includes the current active criteria, a schedule of any upcoming changes, and a log of all historical requirements. The goal is to provide a transparent and predictable set of standards for all network participants.
+
+---
+
 # Upcoming Eligibility Criteria
 
-We will announce changes to the eligibility criteria in the table below. Once the change goes live then it will be reflected in the eligibility criteria section of this document.
+**We will announce changes to the eligibility criteria in the table below.** Once the change goes live, it will be reflected in the [Active Eligibility Criteria](https://github.com/graphprotocol/service-quality-oracle/blob/main/ELIGIBILITY_CRITERIA.md#active-eligibility-criteria) section of this document.
 
-| Upcoming Requirement | Justification | Date Updated/Introduced (YYYY-MM-DD)|
-|----------------------|---------------|-------------------------------------|
-| **Requirement 1:** | This is a placeholder for future criteria, watch this space to stay informed. We will also announce any upcoming requirements via our existing official channels. | YYYY-MM-DD |
-
-> **Note**:
->
-> When announcing new eligibility criteria we will allow a window for indexers to prepare their infrastructure before any new/updated criteria goes live, refer to the `Date Updated/Introduced (YYYY-MM-DD)` column to see when upcoming eligibility criteria will merge.
-
-# Eligibility Criteria
-
-The Service Quality Oracle determines which indexers are eligible to receive indexing rewards using a threshold rewards algorithm that operates by checking indexers meet the following criteria:
-
-1. Indexers must be online for 5+ days in a given 28 day rolling period.
-    1. To be online an indexer must serve at least 1 qualifying query on 10 different subgraphs
-        1. A qualifying query is one where:
-            1. The query response HTTP status was 200 OK, indicating query success.
-            2. The query response latency was <5,000 ms.
-            3. The query was served <50,000 blocks behind chainhead.
-            4. The subgraph had at least 500 GRT in curation signal at the time that the query was served.
+| Upcoming Requirement | Justification | Date Requirement Will Be Updated/Introduced (YYYY-MM-DD) |
+|----------------------|---------------|----------------------------------------------------------|
+| **Example Requirement:** | This is a placeholder for future criteria. Watch this space to stay informed. We will also announce upcoming requirements via official channels. | `YYYY-MM-DD` |
 
 > **Note**:
-> 
-> All four quality criteria must be satisfied simultaneously for a query to count towards the daily requirement.
-> 
-> The above query criteria must be satisfied on 10+ subgraphs per day, for 5+ days in any given 28 day rolling window.
->
-> Issuance eligibility is refreshed daily via the ServiceQualityOracle contract.
->
-> Once an indexer has qualified for issuance via the ServiceQualityOracle contract, they can claim indexing rewards from the protocol for the duration of the qualification period (default is 14 days), even if the requirements change.
+> We will typically allow a 14 day window after announcing a change before it goes live.
 
+---
 
+# Active Eligibility Criteria
 
-| Requirement | Justification | Date Updated/Introduced (YYYY-MM-DD)|
-|-------------|---------------|-------------------------------------|
-| **Query Status:** The query must have a `200 OK` HTTP response status indicating query success | Indexer infrastructure needs to be capable of serving successful queries to benefit data consumers. | TBD (at genesis of the SQO) |
-| **Query Latency:** The query response must be delivered to the gateway in `< 5,000 ms` | Fast query responses are important to data consumers. | TBD (at genesis of the SQO) |
-| **Query Freshness:** The query must be served from a subgraph that is `< 50,000 blocks` behind chainhead | Data needs to be fresh to be useful to data consumers. | TBD (at genesis of the SQO) |
-| **Subgraph Signal:** The subgraph needs to have `≥ 500 GRT` in curation signal at the time when the query was served. | Indexers are encouraged to serve data on subgraphs that have curation signal. This also creates an economic barrier against those that prefer to game the system. | TBD (at genesis of the SQO) |
+The following criteria are used to identify indexers that should be eligible to receive indexing rewards.
+
+- **Days Online Requirement:** Indexers must be active for **5+ days** in a given **28 day** period for rewards eligibility.
+- **Daily Query Requirement:** To be active, an indexer must serve at least **1 qualifying query** on **10 different subgraphs**.
+- **Query Quality Requirements:** A qualifying query is one that simultaneously meets **all** of the following criteria:
+  - Query Response HTTP Status: **200 OK**.
+  - Query Response Latency: **< 5,000 ms**.
+  - Query Freshness: **< 50,000 blocks** behind chainhead.
+  - Subgraph Curation Signal: **≥ 500 GRT**.
+
+Eligibility for indexing rewards is typically refreshed daily via the ServiceQualityOracle contract.
+
+> **Note**:
+> Once an indexer has successfully qualified for indexing rewards by satisfying the active eligibility criteria, and a corresponding transaction has been submitted on chain by an authorized Oracle into the ServiceQualityOracle contract, the now eligible indexer can continue claiming indexing rewards from the protocol for the duration of the qualification period (default is 14 days), even if the active eligibility criteria change.
+
+---
+
+# Eligibility Requirements Changelog
+
+This table tracks changes to the indexing rewards eligibility requirements over time.
+
+| Requirement Category | Requirement Details | Effective Date (YYYY-MM-DD) | Change Type: Initial, Updated, New, Removed | Justification | Notes |
+|----------------------|---------------------|-----------------------------|-------------|---------------|-------|
+| **Indexer Activity** | Indexers must be active for **5+ days** in a given **28 day** period for indexing rewards eligibility. | TBD | Initial | Encourages indexers to familiarize themselves with infrastructure maintenance and ongoing operations. | Planned for Service Quality Oracle launch |
+| **Query Qualification** | Indexers must serve **≥1 qualifying query** on **≥10 different subgraphs** in a day for the day to count towards the **Indexer Activity** requirement. | TBD | Initial | Encourages indexers to become familiar with the process of syncing a range of subgraphs. | Planned for Service Quality Oracle launch |
+| **Query Response Quality** | *•* Query Response HTTP Status: **200 OK**<br>*•* Query Response Latency: **< 5,000 ms**<br>*•* Query Freshness: **< 50,000 blocks** behind chainhead.<br>*•* Subgraph Curation Signal: **≥ 500 GRT**. | TBD | Initial | *•* Indexer infrastructure needs to serve successful queries to benefit data consumers.<br>*•* Fast query responses are important to data consumers.<br>*•* Encourages indexers to sync to chainhead.<br>*•* Creates a barrier against gaming eligibility requirements. | Planned for Service Quality Oracle launch |
+
+---
