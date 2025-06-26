@@ -20,3 +20,6 @@ contracts/contract.abi.json
 /src/utils/__pycache__
 /src/models/__pycache__
 .coverage
+
+# Ignore docker compose override file
+docker-compose.override.yml

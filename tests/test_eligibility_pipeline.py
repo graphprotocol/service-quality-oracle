@@ -151,7 +151,7 @@ def _assert_output_files(
         "data_with_non_numeric_values",
     ],
 )
-def test_process_correctly_filters_and_saves_data(
+def test_process_filters_and_saves_data_correctly(
     pipeline: EligibilityPipeline,
     input_data_fixture: str,
     expected_eligible: List[str],
@@ -177,7 +177,7 @@ def test_process_correctly_filters_and_saves_data(
     _assert_output_files(pipeline, current_date_val, input_data, expected_eligible, expected_ineligible)
 
 
-def test_process_raises_valueerror_on_invalid_structure(pipeline: EligibilityPipeline):
+def test_process_fails_on_invalid_dataframe_structure(pipeline: EligibilityPipeline):
     """
     Tests that `process` correctly raises a ValueError when the input DataFrame
     is missing required columns.
@@ -190,7 +190,7 @@ def test_process_raises_valueerror_on_invalid_structure(pipeline: EligibilityPip
         pipeline.process(invalid_df, current_date=date.today())
 
 
-def test_process_with_none_input_raises_attribute_error(pipeline: EligibilityPipeline):
+def test_process_fails_on_none_input(pipeline: EligibilityPipeline):
     """
     Tests that `process` raises an AttributeError when the input is not a DataFrame,
     as it will fail when trying to access attributes like `columns`.
@@ -216,7 +216,7 @@ def test_process_with_none_input_raises_attribute_error(pipeline: EligibilityPip
     ],
     ids=["standard_cleanup", "zero_max_age", "all_recent_are_kept", "negative_max_age_keeps_all"],
 )
-def test_clean_old_date_directories_removes_old_and_preserves_new(
+def test_clean_old_date_directories_removes_correct_directories(
     pipeline: EligibilityPipeline, max_age, days_to_create, expected_to_exist, expected_to_be_deleted
 ):
     """
@@ -243,7 +243,7 @@ def test_clean_old_date_directories_removes_old_and_preserves_new(
         assert not dirs_to_create[day].exists(), f"Directory for {day} days ago should have been deleted."
 
 
-def test_clean_old_date_directories_ignores_malformed_dirs_and_files(pipeline: EligibilityPipeline):
+def test_clean_old_date_directories_ignores_malformed_names(pipeline: EligibilityPipeline):
     """
     Tests that `clean_old_date_directories` ignores directories with names that
     are not in date format and also ignores loose files.
@@ -270,7 +270,7 @@ def test_clean_old_date_directories_ignores_malformed_dirs_and_files(pipeline: E
     assert some_file.exists()
 
 
-def test_clean_old_date_directories_runs_without_error_if_output_dir_missing(
+def test_clean_old_date_directories_handles_missing_output_dir(
     pipeline: EligibilityPipeline, caplog: pytest.LogCaptureFixture
 ):
     """
@@ -286,7 +286,7 @@ def test_clean_old_date_directories_runs_without_error_if_output_dir_missing(
 # --- Tests for get_date_output_directory() ---
 
 
-def test_get_date_output_directory_returns_correct_format(pipeline: EligibilityPipeline):
+def test_get_date_output_directory_returns_correct_path_format(pipeline: EligibilityPipeline):
     """
     Tests that `get_date_output_directory` returns a correctly formatted
     path for a given date.
@@ -314,7 +314,7 @@ def test_get_date_output_directory_returns_correct_format(pipeline: EligibilityP
     ],
     ids=["valid_structure", "missing_one_column", "empty_with_missing_column"],
 )
-def test_validate_dataframe_structure(
+def test_validate_dataframe_structure_validates_correctly(
     pipeline: EligibilityPipeline, df_data: dict, required_cols: List[str], should_raise: bool
 ):
     """
@@ -335,7 +335,7 @@ def test_validate_dataframe_structure(
 # --- Tests for get_directory_size_info() ---
 
 
-def test_get_directory_size_info_with_content(pipeline: EligibilityPipeline):
+def test_get_directory_size_info_succeeds_with_content(pipeline: EligibilityPipeline):
     """
     Tests `get_directory_size_info` for a directory with files and subdirectories.
     """
@@ -358,7 +358,7 @@ def test_get_directory_size_info_with_content(pipeline: EligibilityPipeline):
     assert info["path"] == str(output_dir)
 
 
-def test_get_directory_size_info_for_empty_directory(pipeline: EligibilityPipeline):
+def test_get_directory_size_info_succeeds_for_empty_directory(pipeline: EligibilityPipeline):
     """
     Tests `get_directory_size_info` for an empty directory.
     """
@@ -376,7 +376,7 @@ def test_get_directory_size_info_for_empty_directory(pipeline: EligibilityPipeli
     assert info["file_count"] == 0
 
 
-def test_get_directory_size_info_for_non_existent_directory(pipeline: EligibilityPipeline):
+def test_get_directory_size_info_succeeds_for_non_existent_directory(pipeline: EligibilityPipeline):
     """
     Tests `get_directory_size_info` for a directory that does not exist.
     """
@@ -395,7 +395,7 @@ def test_get_directory_size_info_for_non_existent_directory(pipeline: Eligibilit
     assert info["file_count"] == 0
 
 
-def test_get_directory_size_info_with_megabyte_content(pipeline: EligibilityPipeline):
+def test_get_directory_size_info_calculates_megabytes_correctly(pipeline: EligibilityPipeline):
     """
     Tests `get_directory_size_info` correctly calculates size in megabytes.
     """

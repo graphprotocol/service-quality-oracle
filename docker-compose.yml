@@ -51,7 +51,7 @@ services:
           memory: 512M
 
     # Restart policy
-    restart: unless-stopped
+    restart: "on-failure"
 
     # Healthcheck to ensure the container is running
     healthcheck:

@@ -13,6 +13,7 @@ import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
+from eth_account.datastructures import SignedTransaction
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 from web3 import Web3
 from web3.contract import Contract
@@ -174,9 +175,12 @@ class BlockchainClient:
 
                 return do_call()
 
-            # If we get an exception, log the error and switch to the next RPC provider
+            # If we get an exception after all retries, log the error and switch to the next RPC provider
             except RPC_FAILOVER_EXCEPTIONS as e:
-                logger.warning(f"RPC call failed with provider at index {self.current_rpc_index}: {e}")
+                current_provider = self.rpc_providers[self.current_rpc_index]
+                logger.warning(
+                    f"RPC call failed with provider at index {self.current_rpc_index} ({current_provider}): {e}"
+                )
                 self._get_next_rpc_provider()
 
                 # If we have tried all RPC providers, log the error and raise an exception
@@ -400,7 +404,7 @@ class BlockchainClient:
             raise
 
 
-    def _send_signed_transaction(self, signed_tx: Any) -> str:
+    def _send_signed_transaction(self, signed_tx: SignedTransaction) -> str:
         """
         Send a signed transaction and wait for the receipt.
 
@@ -412,22 +416,23 @@ class BlockchainClient:
         """
         # Try to send the transaction and wait for the receipt
         try:
-            tx_hash = self._execute_rpc_call(self.w3.eth.send_raw_transaction, signed_tx.rawTransaction)
-            tx_hash_hex = tx_hash.hex()
-            logger.info(f"Transaction sent with hash: {tx_hash_hex}")
+            # Send the signed transaction
+            tx_hash = self._execute_rpc_call(self.w3.eth.send_raw_transaction, signed_tx.raw_transaction)
+            logger.info(f"Transaction sent with hash: 0x{tx_hash.hex()}")
 
+            # Wait for the transaction receipt
             receipt = self._execute_rpc_call(
                 self.w3.eth.wait_for_transaction_receipt, tx_hash, self.tx_timeout_seconds
             )
 
             # If the transaction was successful, log the success and return the hash
             if receipt["status"] == 1:
-                logger.info(f"Transaction successful: {self.block_explorer_url}/tx/{tx_hash_hex}")
-                return tx_hash_hex
+                logger.info(f"Transaction successful: {self.block_explorer_url}/tx/0x{tx_hash.hex()}")
+                return tx_hash.hex()
 
             # If the transaction failed, handle the error
             else:
-                error_msg = f"Transaction failed: {self.block_explorer_url}/tx/{tx_hash_hex}"
+                error_msg = f"Transaction failed: {self.block_explorer_url}/tx/0x{tx_hash.hex()}"
                 logger.error(error_msg)
                 raise Exception(error_msg)
 
@@ -435,7 +440,7 @@ class BlockchainClient:
         except Exception as e:
             error_msg = f"Error sending transaction or waiting for receipt: {str(e)}"
             logger.error(error_msg)
-            raise Exception(error_msg) from e
+            raise Exception(error_msg)
 
         # This part should be unreachable, but it's here for safety.
         raise Exception("Transaction failed for an unknown reason.")
@@ -578,7 +583,7 @@ class BlockchainClient:
         batch_size: int,
         replace: bool = False,
         data_bytes: bytes = b"",
-    ) -> List[str]:
+    ) -> tuple[List[str], str]:
         """
         Batches indexer addresses and sends multiple transactions for issuance eligibility.
 
@@ -596,12 +601,15 @@ class BlockchainClient:
             data_bytes: Additional data for the transaction.
 
         Returns:
-            A list of transaction hashes for all the batches sent.
+            A tuple containing:
+            - A list of transaction hashes for all the batches sent
+            - The RPC provider URL that was used for the transactions
         """
         # Ensure there are indexer addresses to process
         if not indexer_addresses:
             logger.warning("No indexer addresses provided.")
-            return []
+            current_rpc_provider = self.rpc_providers[self.current_rpc_index]
+            return [], current_rpc_provider
 
         logger.info(
             f"Starting batch transaction for {len(indexer_addresses)} indexers, with batch size {batch_size}."
@@ -623,6 +631,7 @@ class BlockchainClient:
                     replace,
                     data_bytes,
                 )
+                tx_hash = "0x" + tx_hash
                 transaction_hashes.append(tx_hash)
                 logger.info(f"Successfully sent batch {i // batch_size + 1}, tx_hash: {tx_hash}")
 
@@ -631,4 +640,6 @@ class BlockchainClient:
                 logger.error(f"Failed to send batch {i // batch_size + 1}. Halting batch processing. Error: {e}")
                 raise
 
-        return transaction_hashes
+        # Return transaction hashes and the current RPC provider used
+        current_rpc_provider = self.rpc_providers[self.current_rpc_index]
+        return transaction_hashes, current_rpc_provider

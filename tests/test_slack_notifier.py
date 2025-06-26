@@ -23,13 +23,13 @@ def mock_requests():
 # 1. Initialization and Factory Tests
 
 
-def test_successful_initialization():
+def test_init_succeeds_with_webhook_url():
     """Tests that the SlackNotifier can be initialized with a webhook URL."""
     notifier = SlackNotifier(MOCK_WEBHOOK_URL)
     assert notifier.webhook_url == MOCK_WEBHOOK_URL
 
 
-def test_create_slack_notifier_with_url():
+def test_create_slack_notifier_returns_instance_with_url():
     """Tests that the factory function returns a Notifier instance when a URL is provided."""
     notifier = create_slack_notifier(MOCK_WEBHOOK_URL)
     assert isinstance(notifier, SlackNotifier)
@@ -37,7 +37,7 @@ def test_create_slack_notifier_with_url():
 
 
 @pytest.mark.parametrize("url", [None, "", "   "])
-def test_create_slack_notifier_without_url(url: str):
+def test_create_slack_notifier_returns_none_without_url(url: str):
     """Tests that the factory function returns None if the URL is missing or empty."""
     notifier = create_slack_notifier(url)
     assert notifier is None
@@ -46,7 +46,7 @@ def test_create_slack_notifier_without_url(url: str):
 # 2. Sending Logic Tests
 
 
-def test_send_message_success(mock_requests: MagicMock):
+def test_send_message_succeeds_on_happy_path(mock_requests: MagicMock):
     """Tests a successful message send."""
     notifier = SlackNotifier(MOCK_WEBHOOK_URL)
     mock_requests.return_value.status_code = 200
@@ -60,7 +60,7 @@ def test_send_message_success(mock_requests: MagicMock):
     )
 
 
-def test_send_message_retry_on_failure(mock_requests: MagicMock):
+def test_send_message_retries_on_request_failure(mock_requests: MagicMock):
     """Tests that the retry decorator is engaged on a request failure."""
     notifier = SlackNotifier(MOCK_WEBHOOK_URL)
     # The decorator is configured with max_attempts=8
@@ -79,7 +79,7 @@ def test_send_message_retry_on_failure(mock_requests: MagicMock):
 # 3. Payload Construction Tests
 
 
-def test_send_success_notification_payload(mock_requests: MagicMock):
+def test_send_success_notification_builds_correct_payload(mock_requests: MagicMock):
     """Tests that the success notification has the correct structure."""
     notifier = SlackNotifier(MOCK_WEBHOOK_URL)
     notifier.send_success_notification(
@@ -106,7 +106,7 @@ def test_send_success_notification_payload(mock_requests: MagicMock):
     assert "Batch 1: http://etherscan.io/tx/1" in fields["Transactions"]
 
 
-def test_send_failure_notification_payload(mock_requests: MagicMock):
+def test_send_failure_notification_builds_correct_payload(mock_requests: MagicMock):
     """Tests that the failure notification has the correct structure."""
     notifier = SlackNotifier(MOCK_WEBHOOK_URL)
     notifier.send_failure_notification(error_message="Something broke", stage="Test Stage")
@@ -123,7 +123,7 @@ def test_send_failure_notification_payload(mock_requests: MagicMock):
     assert "Something broke" in fields["Error"]
 
 
-def test_send_info_notification_payload(mock_requests: MagicMock):
+def test_send_info_notification_builds_correct_payload(mock_requests: MagicMock):
     """Tests that the info notification has the correct structure."""
     notifier = SlackNotifier(MOCK_WEBHOOK_URL)
     notifier.send_info_notification(message="Just an FYI", title="Friendly Reminder")

@@ -85,7 +85,7 @@ class TestInitializationAndConnection:
     """Tests focusing on the client's initialization and RPC connection logic."""
 
 
-    def test_successful_initialization(self, blockchain_client: BlockchainClient, mock_w3, mock_file):
+    def test_init_succeeds_on_happy_path(self, blockchain_client: BlockchainClient, mock_w3, mock_file):
         """
         Tests that the BlockchainClient initializes correctly on the happy path.
         """
@@ -109,7 +109,7 @@ class TestInitializationAndConnection:
         assert client.contract is not None
 
 
-    def test_initialization_fails_if_abi_not_found(self, mock_w3, mock_slack):
+    def test_init_fails_if_abi_not_found(self, mock_w3, mock_slack):
         """
         Tests that BlockchainClient raises an exception if the ABI file cannot be found.
         """
@@ -127,7 +127,7 @@ class TestInitializationAndConnection:
                     )
 
 
-    def test_rpc_failover_mechanism(self, mock_w3, mock_slack):
+    def test_init_failover_succeeds_if_primary_rpc_fails(self, mock_w3, mock_slack):
         """
         Tests that the client successfully fails over to a secondary RPC if the primary fails.
         """
@@ -159,7 +159,7 @@ class TestInitializationAndConnection:
                 assert client.current_rpc_index == 1
 
 
-    def test_connection_error_if_all_rpcs_fail(self, mock_w3, mock_slack):
+    def test_init_fails_if_all_rpcs_fail(self, mock_w3, mock_slack):
         """
         Tests that a ConnectionError is raised if the client cannot connect to any RPC provider.
         """
@@ -184,7 +184,7 @@ class TestInitializationAndConnection:
                     )
 
 
-    def test_execute_rpc_call_with_failover(self, blockchain_client: BlockchainClient):
+    def test_execute_rpc_call_failover_succeeds_on_connection_error(self, blockchain_client: BlockchainClient):
         """
         Tests that _execute_rpc_call fails over to the next provider if the first one
         is unreachable, and sends a Slack notification.
@@ -216,7 +216,7 @@ class TestInitializationAndConnection:
         assert "Switching from previous RPC" in call_kwargs["message"]
 
 
-    def test_execute_rpc_call_reraises_unexpected_exceptions(self, blockchain_client: BlockchainClient):
+    def test_execute_rpc_call_reraises_unexpected_exception(self, blockchain_client: BlockchainClient):
         """
         Tests that _execute_rpc_call does not attempt to failover on unexpected,
         non-network errors and instead re-raises them immediately.
@@ -234,7 +234,7 @@ class TestInitializationAndConnection:
         blockchain_client.slack_notifier.send_info_notification.assert_not_called()
 
 
-    def test_initialization_fails_with_empty_rpc_provider_list(self, mock_w3, mock_slack):
+    def test_init_fails_with_empty_rpc_list(self, mock_w3, mock_slack):
         """
         Tests that BlockchainClient raises an exception if initialized with an empty list of RPC providers.
         """
@@ -256,7 +256,7 @@ class TestTransactionLogic:
     """Tests focusing on the helper methods for building and sending a transaction."""
 
 
-    def test_setup_transaction_account_success(self, blockchain_client: BlockchainClient):
+    def test_setup_transaction_account_succeeds_with_valid_key(self, blockchain_client: BlockchainClient):
         """
         Tests that _setup_transaction_account returns the correct address and formatted key
         for a valid private key.
@@ -272,9 +272,7 @@ class TestTransactionLogic:
             assert key == MOCK_PRIVATE_KEY
 
 
-    def test_setup_transaction_account_invalid_key_raises_key_validation_error(
-        self, blockchain_client: BlockchainClient
-    ):
+    def test_setup_transaction_account_fails_with_invalid_key(self, blockchain_client: BlockchainClient):
         """
         Tests that _setup_transaction_account raises KeyValidationError for an invalid key.
         """
@@ -285,7 +283,7 @@ class TestTransactionLogic:
                 blockchain_client._setup_transaction_account("invalid-key")
 
 
-    def test_setup_transaction_account_unexpected_error(self, blockchain_client: BlockchainClient):
+    def test_setup_transaction_account_fails_on_unexpected_error(self, blockchain_client: BlockchainClient):
         """
         Tests that _setup_transaction_account raises a generic exception for unexpected errors.
         """
@@ -296,7 +294,7 @@ class TestTransactionLogic:
                 blockchain_client._setup_transaction_account("any-key")
 
 
-    def test_estimate_transaction_gas_success(self, blockchain_client: BlockchainClient):
+    def test_estimate_transaction_gas_succeeds_and_adds_buffer(self, blockchain_client: BlockchainClient):
         """
         Tests that _estimate_transaction_gas correctly estimates gas and adds a 25% buffer.
         """
@@ -318,7 +316,7 @@ class TestTransactionLogic:
         mock_contract_func.return_value.estimate_gas.assert_called_once_with({"from": MOCK_SENDER_ADDRESS})
 
 
-    def test_estimate_transaction_gas_failure(self, blockchain_client: BlockchainClient):
+    def test_estimate_transaction_gas_fails_on_rpc_error(self, blockchain_client: BlockchainClient):
         """
         Tests that _estimate_transaction_gas raises an exception if the RPC call fails.
         """
@@ -336,7 +334,7 @@ class TestTransactionLogic:
             )
 
 
-    def test_determine_transaction_nonce_new(self, blockchain_client: BlockchainClient):
+    def test_determine_transaction_nonce_fetches_next_nonce_for_new_tx(self, blockchain_client: BlockchainClient):
         """
         Tests that the next available nonce is fetched for a new transaction (replace=False).
         """
@@ -352,7 +350,9 @@ class TestTransactionLogic:
         blockchain_client.mock_w3_instance.eth.get_transaction_count.assert_called_once_with(MOCK_SENDER_ADDRESS)
 
 
-    def test_determine_transaction_nonce_replace(self, blockchain_client: BlockchainClient):
+    def test_determine_transaction_nonce_uses_oldest_pending_for_replacement(
+        self, blockchain_client: BlockchainClient
+    ):
         """
         Tests that the nonce of the oldest pending transaction is used for replacement (replace=True).
         """
@@ -375,7 +375,7 @@ class TestTransactionLogic:
         blockchain_client.mock_w3_instance.eth.get_block.assert_called_once_with("pending", full_transactions=True)
 
 
-    def test_determine_transaction_nonce_replace_no_pending_tx_with_nonce_gap(
+    def test_determine_transaction_nonce_falls_back_to_latest_on_nonce_gap(
         self, blockchain_client: BlockchainClient
     ):
         """
@@ -397,7 +397,7 @@ class TestTransactionLogic:
         assert blockchain_client.mock_w3_instance.eth.get_transaction_count.call_count == 2
 
 
-    def test_determine_transaction_nonce_replace_no_pending_tx_no_gap_fallback(
+    def test_determine_transaction_nonce_falls_back_to_standard_if_no_pending_or_gap(
         self, blockchain_client: BlockchainClient
     ):
         """
@@ -421,7 +421,7 @@ class TestTransactionLogic:
         assert w3_instance.eth.get_transaction_count.call_count == 3
 
 
-    def test_determine_transaction_nonce_replace_handles_errors(self, blockchain_client: BlockchainClient):
+    def test_determine_transaction_nonce_falls_back_on_error(self, blockchain_client: BlockchainClient):
         """
         Tests that nonce determination falls back gracefully if checking for pending
         transactions fails.
@@ -440,7 +440,7 @@ class TestTransactionLogic:
         w3_instance.eth.get_transaction_count.assert_called()
 
 
-    def test_get_gas_prices_success(self, blockchain_client: BlockchainClient):
+    def test_get_gas_prices_succeeds_on_happy_path(self, blockchain_client: BlockchainClient):
         """
         Tests that _get_gas_prices successfully fetches and returns the base and priority fees.
         """
@@ -459,7 +459,7 @@ class TestTransactionLogic:
         assert max_priority_fee == mock_priority_fee
 
 
-    def test_get_gas_prices_fallback_on_base_fee_error(self, blockchain_client: BlockchainClient):
+    def test_get_gas_prices_falls_back_on_base_fee_error(self, blockchain_client: BlockchainClient):
         """
         Tests that _get_gas_prices falls back to a default base fee if the RPC call fails.
         """
@@ -475,7 +475,7 @@ class TestTransactionLogic:
         blockchain_client.mock_w3_instance.to_wei.assert_called_once_with(10, "gwei")
 
 
-    def test_get_gas_prices_fallback_on_priority_fee_error(self, blockchain_client: BlockchainClient):
+    def test_get_gas_prices_falls_back_on_priority_fee_error(self, blockchain_client: BlockchainClient):
         """
         Tests that _get_gas_prices falls back to a default priority fee if the RPC call fails.
         """
@@ -500,7 +500,7 @@ class TestTransactionLogic:
             (True, 420, 20),  # Replacement: base*4 + priority*2
         ],
     )
-    def test_build_transaction_params(
+    def test_build_transaction_params_builds_correctly(
         self,
         replace,
         expected_max_fee,
@@ -528,7 +528,7 @@ class TestTransactionLogic:
         assert tx_params["nonce"] == 1
 
 
-    def test_build_and_sign_transaction_success(self, blockchain_client: BlockchainClient):
+    def test_build_and_sign_transaction_succeeds_on_happy_path(self, blockchain_client: BlockchainClient):
         """
         Tests that _build_and_sign_transaction successfully builds and signs a transaction.
         """
@@ -557,7 +557,7 @@ class TestTransactionLogic:
         )
 
 
-    def test_build_and_sign_transaction_failure(self, blockchain_client: BlockchainClient):
+    def test_build_and_sign_transaction_fails_on_build_error(self, blockchain_client: BlockchainClient):
         """
         Tests that _build_and_sign_transaction raises an exception if building fails.
         """
@@ -576,31 +576,35 @@ class TestTransactionLogic:
             )
 
 
-    def test_send_signed_transaction_success(self, blockchain_client: BlockchainClient):
+    def test_send_signed_transaction_succeeds_on_happy_path(self, blockchain_client: BlockchainClient):
         """
-        Tests that a signed transaction is sent and its hash is returned on success.
+        Tests that _send_signed_transaction successfully sends a transaction
+        and waits for a successful receipt.
         """
         # Arrange
-        mock_signed_tx = MagicMock()
-        mock_signed_tx.rawTransaction = b"raw_tx_bytes"
         mock_tx_hash = b"tx_hash"
-        blockchain_client.mock_w3_instance.eth.send_raw_transaction.return_value = mock_tx_hash
-        blockchain_client.mock_w3_instance.eth.wait_for_transaction_receipt.return_value = {"status": 1}
+        blockchain_client.w3.eth.send_raw_transaction.return_value = mock_tx_hash
+        blockchain_client.w3.eth.wait_for_transaction_receipt.return_value = {"status": 1}
+
+        # Mock the SignedTransaction object with the .raw_transaction property
+        mock_signed_tx = MagicMock()
+        type(mock_signed_tx).raw_transaction = PropertyMock(return_value=b"raw_tx_bytes")
 
         # Act
-        tx_hash_hex = blockchain_client._send_signed_transaction(mock_signed_tx)
+        tx_hash = blockchain_client._send_signed_transaction(mock_signed_tx)
 
         # Assert
-        assert tx_hash_hex == mock_tx_hash.hex()
-        blockchain_client.mock_w3_instance.eth.send_raw_transaction.assert_called_once_with(
-            mock_signed_tx.rawTransaction
-        )
-        blockchain_client.mock_w3_instance.eth.wait_for_transaction_receipt.assert_called_once_with(
+        # Check that send_raw_transaction was called with the correct bytes
+        blockchain_client.w3.eth.send_raw_transaction.assert_called_once_with(b"raw_tx_bytes")
+        # Check that wait_for_transaction_receipt was called with the returned hash
+        blockchain_client.w3.eth.wait_for_transaction_receipt.assert_called_once_with(
             mock_tx_hash, MOCK_TX_TIMEOUT_SECONDS
         )
+        # Check that the final hash is correct
+        assert tx_hash == mock_tx_hash.hex()
 
 
-    def test_send_signed_transaction_raises_exception_when_reverted(self, blockchain_client: BlockchainClient):
+    def test_send_signed_transaction_fails_if_reverted(self, blockchain_client: BlockchainClient):
         """
         Tests that an exception is raised if the transaction is reverted on-chain.
         """
@@ -614,12 +618,12 @@ class TestTransactionLogic:
 
         # Act & Assert
         with pytest.raises(
-            Exception, match=f"Transaction failed: {MOCK_BLOCK_EXPLORER_URL}/tx/{mock_tx_hash.hex()}"
+            Exception, match=f"Transaction failed: {MOCK_BLOCK_EXPLORER_URL}/tx/0x{mock_tx_hash.hex()}"
         ):
             blockchain_client._send_signed_transaction(mock_signed_tx)
 
 
-    def test_send_signed_transaction_raises_exception_on_timeout(self, blockchain_client: BlockchainClient):
+    def test_send_signed_transaction_fails_on_timeout(self, blockchain_client: BlockchainClient):
         """
         Tests that an exception is raised if waiting for the transaction receipt times out.
         """
@@ -681,7 +685,7 @@ class TestOrchestrationAndBatching:
     """Tests focusing on the end-to-end orchestration and batch processing logic."""
 
 
-    def test_execute_complete_transaction_happy_path(
+    def test_execute_complete_transaction_succeeds_on_happy_path(
         self,
         blockchain_client: BlockchainClient,
         mocker: MockerFixture,
@@ -726,7 +730,7 @@ class TestOrchestrationAndBatching:
         mock_full_transaction_flow["send"].assert_called_once_with("signed_tx")
 
 
-    def test_execute_complete_transaction_missing_params(self, blockchain_client: BlockchainClient):
+    def test_execute_complete_transaction_fails_on_missing_params(self, blockchain_client: BlockchainClient):
         """
         Tests that _execute_complete_transaction raises ValueError if required parameters are missing.
         """
@@ -738,7 +742,7 @@ class TestOrchestrationAndBatching:
             blockchain_client._execute_complete_transaction(incomplete_params)
 
 
-    def test_execute_complete_transaction_invalid_function(self, blockchain_client: BlockchainClient):
+    def test_execute_complete_transaction_fails_on_invalid_function(self, blockchain_client: BlockchainClient):
         """
         Tests that _execute_complete_transaction raises ValueError for a non-existent contract function.
         """
@@ -761,7 +765,7 @@ class TestOrchestrationAndBatching:
             blockchain_client._execute_complete_transaction(params)
 
 
-    def test_send_transaction_to_allow_indexers_orchestration(
+    def test_send_transaction_to_allow_indexers_calls_execution_method(
         self, blockchain_client: BlockchainClient, mocker: MockerFixture
     ):
         """
@@ -792,7 +796,7 @@ class TestOrchestrationAndBatching:
         assert call_args["replace"] is False
 
 
-    def test_batch_processing_splits_correctly(self, blockchain_client: BlockchainClient):
+    def test_batch_allow_indexers_splits_batches_correctly(self, blockchain_client: BlockchainClient):
         """
         Tests that the batch processing logic correctly splits a list of addresses
         into multiple transactions based on batch size.
@@ -804,7 +808,7 @@ class TestOrchestrationAndBatching:
 
         # Act
         # Use a batch size of 2, which should result in 3 calls (2, 2, 1)
-        tx_hashes = blockchain_client.batch_allow_indexers_issuance_eligibility(
+        tx_hashes, rpc_provider = blockchain_client.batch_allow_indexers_issuance_eligibility(
             indexer_addresses=addresses,
             private_key=MOCK_PRIVATE_KEY,
             chain_id=1,
@@ -814,6 +818,7 @@ class TestOrchestrationAndBatching:
 
         # Assert
         assert len(tx_hashes) == 3
+        assert rpc_provider in blockchain_client.rpc_providers
         assert blockchain_client.send_transaction_to_allow_indexers.call_count == 3
 
         # Check the contents of each call
@@ -822,7 +827,7 @@ class TestOrchestrationAndBatching:
         assert blockchain_client.send_transaction_to_allow_indexers.call_args_list[2][0][0] == addresses[4:5]
 
 
-    def test_batch_processing_halts_on_failure(self, blockchain_client: BlockchainClient):
+    def test_batch_allow_indexers_halts_on_failure(self, blockchain_client: BlockchainClient):
         """
         Tests that the batch processing halts immediately if one of the transactions fails.
         """
@@ -849,7 +854,7 @@ class TestOrchestrationAndBatching:
         assert blockchain_client.send_transaction_to_allow_indexers.call_count == 2
 
 
-    def test_batch_processing_handles_empty_list(self, blockchain_client: BlockchainClient):
+    def test_batch_allow_indexers_handles_empty_list(self, blockchain_client: BlockchainClient):
         """
         Tests that batch processing handles an empty list of addresses gracefully.
         """
@@ -857,7 +862,7 @@ class TestOrchestrationAndBatching:
         blockchain_client.send_transaction_to_allow_indexers = MagicMock()
 
         # Act
-        tx_hashes = blockchain_client.batch_allow_indexers_issuance_eligibility(
+        tx_hashes, rpc_provider = blockchain_client.batch_allow_indexers_issuance_eligibility(
             indexer_addresses=[],
             private_key=MOCK_PRIVATE_KEY,
             chain_id=1,
@@ -867,4 +872,5 @@ class TestOrchestrationAndBatching:
 
         # Assert
         assert tx_hashes == []
+        assert rpc_provider in blockchain_client.rpc_providers
         blockchain_client.send_transaction_to_allow_indexers.assert_not_called()

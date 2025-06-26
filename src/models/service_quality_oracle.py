@@ -17,6 +17,7 @@ from pathlib import Path
 from src.models.bigquery_provider import BigQueryProvider
 from src.models.blockchain_client import BlockchainClient
 from src.models.eligibility_pipeline import EligibilityPipeline
+from src.utils.circuit_breaker import CircuitBreaker
 from src.utils.configuration import (
     credential_manager,
     load_config,
@@ -44,6 +45,18 @@ def main(run_date_override: date = None):
     stage = "Initialization"
     project_root_path = Path(__file__).resolve().parents[2]
     slack_notifier = None
+
+    # --- Circuit Breaker Initialization and Check ---
+    circuit_breaker_log = project_root_path / "data" / "circuit_breaker.log"
+    circuit_breaker = CircuitBreaker(
+        failure_threshold=3,
+        window_minutes=60,
+        log_file=circuit_breaker_log,
+    )
+
+    # If circuit_breaker.check returns False, exit cleanly (code 0) to prevent Docker container restart.
+    if not circuit_breaker.check():
+        sys.exit(0)
 
     try:
         # Configuration and credentials
@@ -105,7 +118,7 @@ def main(run_date_override: date = None):
             tx_timeout_seconds=config["TX_TIMEOUT_SECONDS"],
             slack_notifier=slack_notifier,
         )
-        transaction_links = blockchain_client.batch_allow_indexers_issuance_eligibility(
+        transaction_links, rpc_provider_used = blockchain_client.batch_allow_indexers_issuance_eligibility(
             indexer_addresses=eligible_indexers,
             private_key=config["PRIVATE_KEY"],
             chain_id=config["BLOCKCHAIN_CHAIN_ID"],
@@ -118,6 +131,9 @@ def main(run_date_override: date = None):
         execution_time = time.time() - start_time
         logger.info(f"Oracle run completed successfully in {execution_time:.2f} seconds")
 
+        # On a fully successful run, reset the circuit breaker.
+        circuit_breaker.reset()
+
         if slack_notifier:
             try:
                 batch_count = len(transaction_links) if transaction_links else 0
@@ -128,11 +144,15 @@ def main(run_date_override: date = None):
                     execution_time=execution_time,
                     transaction_links=transaction_links,
                     batch_count=batch_count,
+                    rpc_provider_used=rpc_provider_used,
                 )
             except Exception as e:
                 logger.error(f"Failed to send Slack success notification: {e}", exc_info=True)
 
     except Exception as e:
+        # A failure occurred; record it with the circuit breaker.
+        circuit_breaker.record_failure()
+
         execution_time = time.time() - start_time
         error_msg = f"Oracle failed at stage '{stage}': {str(e)}"
         logger.error(error_msg, exc_info=True)

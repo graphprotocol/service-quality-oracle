@@ -67,9 +67,7 @@ class TestInitialization:
     """Tests for the __init__ method."""
 
 
-    def test_initialization_sets_bigquery_options_and_instance_vars(
-        self, provider: BigQueryProvider, mock_bpd: MagicMock
-    ):
+    def test_init_sets_bigquery_options_and_instance_vars(self, provider: BigQueryProvider, mock_bpd: MagicMock):
         """
         Tests that BigQueryProvider initializes correctly, setting BigQuery options and instance variables.
         """
@@ -98,7 +96,7 @@ class TestGetIndexerEligibilityQuery:
         snapshot.assert_match(query, "indexer_eligibility_query.sql")
 
 
-    def test_get_indexer_eligibility_query_with_single_day_range(self, provider: BigQueryProvider):
+    def test_get_indexer_eligibility_query_handles_single_day_range(self, provider: BigQueryProvider):
         """
         Tests that the query is constructed correctly when start and end dates are the same,
         covering an edge case for a single-day analysis period.
@@ -108,7 +106,7 @@ class TestGetIndexerEligibilityQuery:
         assert f"BETWEEN '{SINGLE_DATE.strftime('%Y-%m-%d')}' AND '{SINGLE_DATE.strftime('%Y-%m-%d')}'" in query
 
 
-    def test_get_indexer_eligibility_query_with_invalid_date_range(self, provider: BigQueryProvider):
+    def test_get_indexer_eligibility_query_handles_invalid_date_range(self, provider: BigQueryProvider):
         """
         Tests that the query is constructed correctly even with a logically invalid
         date range (start > end), which should result in an empty set from BigQuery
@@ -127,7 +125,7 @@ class TestReadGbqDataframe:
     """Tests for the _read_gbq_dataframe method."""
 
 
-    def test_read_gbq_dataframe_success(
+    def test_read_gbq_dataframe_succeeds_on_happy_path(
         self, mock_sleep: MagicMock, provider: BigQueryProvider, mock_bpd: MagicMock
     ):
         """
@@ -148,7 +146,7 @@ class TestReadGbqDataframe:
 
 
     @pytest.mark.parametrize("exception_to_raise", RETRYABLE_EXCEPTIONS)
-    def test_read_gbq_dataframe_on_retryable_error_succeeds(
+    def test_read_gbq_dataframe_succeeds_after_retrying_on_error(
         self, mock_sleep: MagicMock, exception_to_raise: Exception, provider: BigQueryProvider, mock_bpd: MagicMock
     ):
         """
@@ -170,7 +168,7 @@ class TestReadGbqDataframe:
         pd.testing.assert_frame_equal(result_df, MOCK_DATAFRAME)
 
 
-    def test_read_gbq_dataframe_on_persistent_error_fails(
+    def test_read_gbq_dataframe_fails_on_persistent_error(
         self, mock_sleep: MagicMock, provider: BigQueryProvider, mock_bpd: MagicMock
     ):
         """
@@ -191,7 +189,7 @@ class TestReadGbqDataframe:
         mock_sleep.assert_not_called()
 
 
-    def test_read_gbq_dataframe_on_non_retryable_error_fails_immediately(
+    def test_read_gbq_dataframe_fails_immediately_on_non_retryable_error(
         self, mock_sleep: MagicMock, provider: BigQueryProvider, mock_bpd: MagicMock
     ):
         """
@@ -214,7 +212,7 @@ class TestFetchIndexerIssuanceEligibilityData:
     """Tests for the main fetch_indexer_issuance_eligibility_data method."""
 
 
-    def test_fetch_data_happy_path(self, provider: BigQueryProvider):
+    def test_fetch_indexer_issuance_eligibility_data_succeeds_on_happy_path(self, provider: BigQueryProvider):
         """
         Tests the happy path for `fetch_indexer_issuance_eligibility_data`, ensuring it
         orchestrates calls correctly and returns the final DataFrame.
@@ -238,7 +236,9 @@ class TestFetchIndexerIssuanceEligibilityData:
         pd.testing.assert_frame_equal(result_df, MOCK_DATAFRAME)
 
 
-    def test_fetch_data_with_empty_result_returns_empty_dataframe(self, provider: BigQueryProvider):
+    def test_fetch_indexer_issuance_eligibility_data_returns_empty_dataframe_on_empty_result(
+        self, provider: BigQueryProvider
+    ):
         """
         Tests that the method gracefully handles and returns an empty DataFrame from BigQuery.
         """
@@ -262,7 +262,9 @@ class TestFetchIndexerIssuanceEligibilityData:
         pd.testing.assert_frame_equal(result_df, MOCK_EMPTY_DATAFRAME)
 
 
-    def test_fetch_data_on_read_error_propagates_exception(self, provider: BigQueryProvider):
+    def test_fetch_indexer_issuance_eligibility_data_propagates_exception_on_read_error(
+        self, provider: BigQueryProvider
+    ):
         """
         Tests that an exception from `_read_gbq_dataframe` is correctly propagated.
         """
