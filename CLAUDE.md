@@ -128,6 +128,12 @@ The system follows a clear data pipeline with daily scheduled execution:
 - Line length limit: 115 characters
 - Import sorting via isort rules
 
+### Git Safety Guidelines
+- **NEVER use `git push --force`** - this can overwrite remote history and cause data loss
+- **Always use `git push --force-with-lease`** if you must force push - it checks that remote hasn't changed
+- Prefer rebasing and clean history over force pushing when possible
+- Always communicate with team before any history rewriting operations
+
 ### PR Requirements
 - Must pass `./scripts/ruff_check_format_assets.sh` without changes
 - All tests must pass
