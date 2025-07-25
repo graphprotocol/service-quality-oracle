@@ -36,6 +36,12 @@ BATCH_SIZE = 125
 MAX_AGE_BEFORE_DELETION = 120
 BIGQUERY_ANALYSIS_PERIOD_DAYS = "28"
 
+[caching]
+# Maximum age in minutes for cached data to be considered fresh
+CACHE_MAX_AGE_MINUTES = "30"
+# Force BigQuery refresh even if fresh cached data exists (true/false)
+FORCE_BIGQUERY_REFRESH = "false"
+
 [eligibility_criteria]
 MIN_ONLINE_DAYS = "5"
 MIN_SUBGRAPHS = "10"

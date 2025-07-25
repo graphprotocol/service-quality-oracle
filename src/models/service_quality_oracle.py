@@ -75,36 +75,60 @@ def main(run_date_override: date = None):
         start_date = current_run_date - timedelta(days=config["BIGQUERY_ANALYSIS_PERIOD_DAYS"])
         end_date = current_run_date
 
-        # --- Data Fetching Stage ---
-        stage = "Data Fetching from BigQuery"
-        logger.info(f"Fetching data from {start_date} to {end_date}")
-
-        # Construct the full table name from configuration
-        table_name = (
-            f"{config['BIGQUERY_PROJECT_ID']}.{config['BIGQUERY_DATASET_ID']}.{config['BIGQUERY_TABLE_ID']}"
-        )
-
-        bigquery_provider = BigQueryProvider(
-            project=config["BIGQUERY_PROJECT_ID"],
-            location=config["BIGQUERY_LOCATION_ID"],
-            table_name=table_name,
-            min_online_days=config["MIN_ONLINE_DAYS"],
-            min_subgraphs=config["MIN_SUBGRAPHS"],
-            max_latency_ms=config["MAX_LATENCY_MS"],
-            max_blocks_behind=config["MAX_BLOCKS_BEHIND"],
-        )
-        eligibility_data = bigquery_provider.fetch_indexer_issuance_eligibility_data(start_date, end_date)
-        logger.info(f"Successfully fetched data for {len(eligibility_data)} indexers from BigQuery.")
-
-        # --- Data Processing Stage ---
-        stage = "Data Processing and Artifact Generation"
+        # Initialize pipeline early to check for cached data
         pipeline = EligibilityPipeline(project_root=project_root_path)
-        eligible_indexers, _ = pipeline.process(
-            input_data_from_bigquery=eligibility_data,
-            current_date=current_run_date,
-        )
-        logger.info(f"Found {len(eligible_indexers)} eligible indexers.")
 
+        # Check for fresh cached data first (30 minutes by default)
+        cache_max_age_minutes = int(config.get("CACHE_MAX_AGE_MINUTES", 30))
+        force_refresh = config.get("FORCE_BIGQUERY_REFRESH", "false").lower() == "true"
+
+        if not force_refresh and pipeline.has_fresh_processed_data(current_run_date, cache_max_age_minutes):
+            # --- Use Cached Data Path ---
+            stage = "Loading Cached Data"
+            logger.info(f"Using cached data for {current_run_date} (fresh within {cache_max_age_minutes} minutes)")
+
+            try:
+                eligible_indexers = pipeline.load_eligible_indexers_from_csv(current_run_date)
+                logger.info(
+                    f"Loaded {len(eligible_indexers)} eligible indexers from cache - "
+                    "skipping BigQuery and processing"
+                )
+            except (FileNotFoundError, ValueError) as cache_error:
+                logger.warning(f"Failed to load cached data: {cache_error}. Falling back to BigQuery.")
+                force_refresh = True
+
+        if force_refresh or not pipeline.has_fresh_processed_data(current_run_date, cache_max_age_minutes):
+            # --- Fresh Data Path (BigQuery + Processing) ---
+            stage = "Data Fetching from BigQuery"
+            reason = "forced refresh" if force_refresh else "no fresh cached data available"
+            logger.info(f"Fetching fresh data from BigQuery ({reason}) - period: {start_date} to {end_date}")
+
+            # Construct the full table name from configuration
+            table_name = (
+                f"{config['BIGQUERY_PROJECT_ID']}.{config['BIGQUERY_DATASET_ID']}.{config['BIGQUERY_TABLE_ID']}"
+            )
+
+            bigquery_provider = BigQueryProvider(
+                project=config["BIGQUERY_PROJECT_ID"],
+                location=config["BIGQUERY_LOCATION_ID"],
+                table_name=table_name,
+                min_online_days=config["MIN_ONLINE_DAYS"],
+                min_subgraphs=config["MIN_SUBGRAPHS"],
+                max_latency_ms=config["MAX_LATENCY_MS"],
+                max_blocks_behind=config["MAX_BLOCKS_BEHIND"],
+            )
+            eligibility_data = bigquery_provider.fetch_indexer_issuance_eligibility_data(start_date, end_date)
+            logger.info(f"Successfully fetched data for {len(eligibility_data)} indexers from BigQuery.")
+
+            # --- Data Processing Stage ---
+            stage = "Data Processing and Artifact Generation"
+            eligible_indexers, _ = pipeline.process(
+                input_data_from_bigquery=eligibility_data,
+                current_date=current_run_date,
+            )
+            logger.info(f"Found {len(eligible_indexers)} eligible indexers after processing.")
+
+        # Clean up old data directories (run this regardless of cache hit/miss)
         pipeline.clean_old_date_directories(config["MAX_AGE_BEFORE_DELETION"])
 
         # --- Blockchain Submission Stage ---
