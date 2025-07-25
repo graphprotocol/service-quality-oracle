@@ -136,12 +136,34 @@ The system follows a clear data pipeline with daily scheduled execution:
 
 ## Security Guidelines
 
+### ⚠️ CRITICAL: This is a PUBLIC repository
+
 ### Sensitive Information Handling
 - **NEVER commit secrets, keys, or credentials** to the repository
+- **NEVER commit actual config.toml files** - only commit config.toml.example with placeholder values
 - Always follow security best practices when handling private keys and API tokens
 - Never introduce code that exposes or logs secrets and keys
 - Use environment variables for sensitive configuration (see config.toml.example)
 - Verify that .gitignore properly excludes sensitive files before committing
+
+### Protected File Types (automatically ignored by .gitignore)
+- Environment files: `.env`, `.env.*`
+- Configuration: `config.toml`, `credentials.json`
+- Keys/Certificates: `*.key`, `*.pem`, `*.p12`, `*.pfx`
+- Secret directories: `**/secrets/`, `**/private/`, `.secrets`
+
+### Security Checklist Before Commits
+1. ✅ Run `git status` and verify no sensitive files are staged
+2. ✅ Review `git diff --cached` for any accidentally included secrets
+3. ✅ Ensure all examples use placeholder values (e.g., `"your_key_here"`)
+4. ✅ Never hardcode real addresses, URLs, or API endpoints
+5. ✅ Use descriptive placeholder text that shows expected format
+
+### Emergency: If Sensitive Data is Committed
+1. **DO NOT** just delete the file in a new commit - the data remains in Git history
+2. Immediately rotate/invalidate the exposed credentials
+3. Contact repository administrators to discuss history rewriting if necessary
+4. Consider the credential permanently compromised
 
 # Session Context Import
 @./SESSION_CONTEXT.md
