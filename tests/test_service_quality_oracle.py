@@ -23,6 +23,8 @@ MOCK_CONFIG = {
     "MAX_BLOCKS_BEHIND": 100,
     "MAX_AGE_BEFORE_DELETION": 90,
     "BIGQUERY_ANALYSIS_PERIOD_DAYS": 28,
+    "CACHE_MAX_AGE_MINUTES": 30,
+    "FORCE_BIGQUERY_REFRESH": "false",
     "BLOCKCHAIN_RPC_URLS": ["http://fake-rpc.com"],
     "BLOCKCHAIN_CONTRACT_ADDRESS": "0x1234",
     "BLOCK_EXPLORER_URL": "http://etherscan.io",
@@ -71,6 +73,9 @@ def oracle_context():
 
         mock_pipeline = mock_pipeline_cls.return_value
         mock_pipeline.process.return_value = (["0xEligible"], ["0xIneligible"])
+        # Configure caching methods to force BigQuery path by default (for existing test compatibility)
+        mock_pipeline.has_fresh_processed_data.return_value = False
+        mock_pipeline.load_eligible_indexers_from_csv.return_value = ["0xEligible"]
 
         mock_client = mock_client_cls.return_value
         mock_client.batch_allow_indexers_issuance_eligibility.return_value = (
@@ -260,3 +265,79 @@ def test_main_logs_error_but_succeeds_if_success_notification_fails(oracle_conte
         f"Failed to send Slack success notification: {error}", exc_info=True
     )
     ctx["slack"]["notifier"].send_failure_notification.assert_not_called()
+
+
+def test_main_uses_cached_data_when_fresh(oracle_context):
+    """Test that main uses cached data when it's fresh (within 30 minutes)."""
+    ctx = oracle_context
+    from datetime import date
+
+    # Configure pipeline to return fresh cached data
+    ctx["pipeline"].has_fresh_processed_data.return_value = True
+    ctx["pipeline"].load_eligible_indexers_from_csv.return_value = ["0xCachedEligible"]
+
+    ctx["main"]()
+
+    # Should check for fresh data (called twice due to our conditional logic)
+    assert ctx["pipeline"].has_fresh_processed_data.call_count == 2
+    ctx["pipeline"].has_fresh_processed_data.assert_called_with(date.today(), 30)
+    # Should load from cache
+    ctx["pipeline"].load_eligible_indexers_from_csv.assert_called_once_with(date.today())
+    # Should NOT call BigQuery
+    ctx["bq_provider_cls"].assert_not_called()
+    # Should NOT call process (since we're using cached data)
+    ctx["pipeline"].process.assert_not_called()
+    # Should still call blockchain submission with cached indexers
+    ctx["client"].batch_allow_indexers_issuance_eligibility.assert_called_once_with(
+        indexer_addresses=["0xCachedEligible"],
+        private_key="0xfakekey",
+        chain_id=1,
+        contract_function="allow",
+        batch_size=100,
+        replace=True,
+    )
+
+
+def test_main_forces_bigquery_refresh_when_configured(oracle_context):
+    """Test that FORCE_BIGQUERY_REFRESH=true bypasses cache even when data is fresh."""
+    ctx = oracle_context
+
+    # Modify config to force refresh
+    modified_config = MOCK_CONFIG.copy()
+    modified_config["FORCE_BIGQUERY_REFRESH"] = "true"
+    ctx["load_config"].return_value = modified_config
+
+    # Configure pipeline to return fresh cached data (should be ignored)
+    ctx["pipeline"].has_fresh_processed_data.return_value = True
+
+    ctx["main"]()
+
+    # With force refresh enabled, has_fresh_processed_data should not be called due to short-circuiting
+    assert ctx["pipeline"].has_fresh_processed_data.call_count == 0
+    # Should NOT load from cache
+    ctx["pipeline"].load_eligible_indexers_from_csv.assert_not_called()
+    # Should call BigQuery despite fresh cache
+    ctx["bq_provider_cls"].assert_called_once()
+    # Should call process normally
+    ctx["pipeline"].process.assert_called_once()
+
+
+def test_main_falls_back_to_bigquery_when_cached_data_load_fails(oracle_context):
+    """Test that main falls back to BigQuery when cached data loading fails."""
+    ctx = oracle_context
+    from datetime import date
+
+    # Configure pipeline to return fresh cached data but fail to load it
+    ctx["pipeline"].has_fresh_processed_data.return_value = True
+    ctx["pipeline"].load_eligible_indexers_from_csv.side_effect = FileNotFoundError("CSV not found")
+
+    ctx["main"]()
+
+    # Should check for fresh data
+    ctx["pipeline"].has_fresh_processed_data.assert_called_once_with(date.today(), 30)
+    # Should attempt to load from cache
+    ctx["pipeline"].load_eligible_indexers_from_csv.assert_called_once_with(date.today())
+    # Should fall back to BigQuery
+    ctx["bq_provider_cls"].assert_called_once()
+    # Should call process normally after fallback
+    ctx["pipeline"].process.assert_called_once()

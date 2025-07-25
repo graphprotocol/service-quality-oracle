@@ -9,6 +9,7 @@ This module contains the logic for processing raw BigQuery data into a list of e
 
 import logging
 import shutil
+import time
 from datetime import date, datetime
 from pathlib import Path
 from typing import List, Tuple
@@ -136,8 +137,13 @@ class EligibilityPipeline:
                 # Remove if older than max_age_before_deletion
                 if age_days > max_age_before_deletion:
                     logger.info(f"Removing old data directory: {item} ({age_days} days old)")
-                    shutil.rmtree(item)
-                    directories_removed += 1
+                    try:
+                        shutil.rmtree(item)
+                        directories_removed += 1
+                    except (FileNotFoundError, OSError) as e:
+                        # Directory already deleted by another process or became inaccessible
+                        logger.debug(f"Directory {item} already removed or inaccessible: {e}")
+                        continue
 
             except ValueError:
                 # Skip directories that don't match date format
@@ -161,6 +167,160 @@ class EligibilityPipeline:
             Path: Path to the date-specific output directory
         """
         return self.output_dir / current_date.strftime("%Y-%m-%d")
+
+
+    def has_existing_processed_data(self, current_date: date) -> bool:
+        """
+        Check if processed data already exists for the given date.
+
+        Args:
+            current_date: The date to check for existing data
+
+        Returns:
+            bool: True if all required CSV files exist and are not empty
+        """
+        output_date_dir = self.get_date_output_directory(current_date)
+
+        # Check if the date directory exists
+        if not output_date_dir.exists():
+            return False
+
+        # Define required files
+        required_files = [
+            "eligible_indexers.csv",
+            "indexer_issuance_eligibility_data.csv",
+            "ineligible_indexers.csv",
+        ]
+
+        # Check that all required files exist and are not empty
+        for filename in required_files:
+            file_path = output_date_dir / filename
+            try:
+                if not file_path.exists() or file_path.stat().st_size == 0:
+                    return False
+            except (FileNotFoundError, OSError):
+                # File disappeared between exists() check and stat() call
+                logger.debug(f"File {file_path} disappeared during existence check")
+                return False
+
+        return True
+
+
+    def get_data_age_minutes(self, current_date: date) -> float:
+        """
+        Calculate the age of existing processed data in minutes.
+
+        Args:
+            current_date: The date for which to check data age
+
+        Returns:
+            float: Age of the data in minutes (based on oldest file)
+
+        Raises:
+            FileNotFoundError: If no CSV files exist for the given date
+        """
+        output_date_dir = self.get_date_output_directory(current_date)
+
+        if not output_date_dir.exists():
+            raise FileNotFoundError(f"No data directory found for date: {current_date}")
+
+        csv_files = list(output_date_dir.glob("*.csv"))
+        if not csv_files:
+            raise FileNotFoundError(f"No CSV files found in directory: {output_date_dir}")
+
+        # Get the oldest file's modification time to be conservative
+        # Handle race condition where files could disappear between glob() and stat()
+        file_mtimes = []
+        for file in csv_files:
+            try:
+                file_mtimes.append(file.stat().st_mtime)
+            except (FileNotFoundError, OSError):
+                # File disappeared between glob() and stat(), skip it
+                logger.debug(f"File {file} disappeared during age calculation")
+                continue
+
+        if not file_mtimes:
+            raise FileNotFoundError(f"All CSV files disappeared during age calculation in: {output_date_dir}")
+
+        oldest_mtime = min(file_mtimes)
+        age_seconds = time.time() - oldest_mtime
+        return age_seconds / 60.0
+
+
+    def has_fresh_processed_data(self, current_date: date, max_age_minutes: int = 30) -> bool:
+        """
+        Check if processed data exists and is fresh (within the specified age limit).
+
+        Args:
+            current_date: The date to check for existing data
+            max_age_minutes: Maximum age in minutes for data to be considered fresh
+
+        Returns:
+            bool: True if all required CSV files exist, are complete, and are fresh
+        """
+        # First check if data exists and is complete
+        if not self.has_existing_processed_data(current_date):
+            return False
+
+        try:
+            # Check if data is fresh enough
+            data_age_minutes = self.get_data_age_minutes(current_date)
+            is_fresh = data_age_minutes <= max_age_minutes
+
+            if is_fresh:
+                logger.info(f"Found fresh cached data for {current_date} (age: {data_age_minutes:.1f} minutes)")
+            else:
+                logger.info(
+                    f"Cached data for {current_date} is stale "
+                    f"(age: {data_age_minutes:.1f} minutes, max: {max_age_minutes})"
+                )
+
+            return is_fresh
+
+        except FileNotFoundError:
+            return False
+
+
+    def load_eligible_indexers_from_csv(self, current_date: date) -> List[str]:
+        """
+        Load the list of eligible indexers from existing CSV file.
+
+        Args:
+            current_date: The date for which to load existing data
+
+        Returns:
+            List[str]: List of eligible indexer addresses
+
+        Raises:
+            FileNotFoundError: If the required CSV file doesn't exist
+            ValueError: If the CSV file is malformed or empty
+        """
+        output_date_dir = self.get_date_output_directory(current_date)
+        eligible_file = output_date_dir / "eligible_indexers.csv"
+
+        if not eligible_file.exists():
+            raise FileNotFoundError(f"Eligible indexers CSV not found: {eligible_file}")
+
+        try:
+            # Read the CSV file - it should have a header row with 'indexer' column
+            df = pd.read_csv(eligible_file)
+
+            if df.empty:
+                logger.warning(f"Eligible indexers CSV is empty: {eligible_file}")
+                return []
+
+            if "indexer" not in df.columns:
+                raise ValueError(
+                    f"CSV file {eligible_file} missing 'indexer' column. Found columns: {list(df.columns)}"
+                )
+
+            indexer_list = df["indexer"].tolist()
+            logger.info(f"Loaded {len(indexer_list)} eligible indexers from cached CSV for {current_date}")
+
+            return indexer_list
+
+        except Exception as e:
+            raise ValueError(f"Error reading CSV file {eligible_file}: {e}")
 
 
     def validate_dataframe_structure(self, df: pd.DataFrame, required_columns: List[str]) -> bool:
