@@ -63,9 +63,7 @@ class BigQueryProvider:
         - A qualifying query is defined as one that meets all of the following criteria:
             - HTTP status '200 OK',
             - Response latency <5,000ms,
-            - Blocks behind <50,000,
-            - Subgraph has >=500 GRT signal at query time
-        Note: The 500 GRT curation signal requirement is not currently implemented.
+            - Blocks behind <50,000
 
         Args:
             start_date (date): The start date for the data range.
