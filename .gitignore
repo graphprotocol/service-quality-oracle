@@ -23,3 +23,11 @@ contracts/contract.abi.json
 
 # Ignore docker compose override file
 docker-compose.override.yml
+SESSION_CONTEXT.md
+
+# macOS system files
+.DS_Store
+**/.DS_Store
+
+# Claude directory - we keep .claude/ for team sharing but ignore system files within it
+.claude/.DS_Store

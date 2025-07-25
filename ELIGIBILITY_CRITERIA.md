@@ -25,7 +25,6 @@ The following criteria are used to identify indexers that should be eligible to 
   - Query Response HTTP Status: **200 OK**.
   - Query Response Latency: **< 5,000 ms**.
   - Query Freshness: **< 50,000 blocks** behind chainhead.
-  - Subgraph Curation Signal: **≥ 500 GRT**.
 
 Eligibility for indexing rewards is typically refreshed daily via the ServiceQualityOracle contract.
 
@@ -42,6 +41,6 @@ This table tracks changes to the indexing rewards eligibility requirements over 
 |----------------------|---------------------|-----------------------------|-------------|---------------|-------|
 | **Indexer Activity** | Indexers must be active for **5+ days** in a given **28 day** period for indexing rewards eligibility. | TBD | Initial | Encourages indexers to familiarize themselves with infrastructure maintenance and ongoing operations. | Planned for Service Quality Oracle launch |
 | **Query Qualification** | Indexers must serve **≥1 qualifying query** on **≥10 different subgraphs** in a day for the day to count towards the **Indexer Activity** requirement. | TBD | Initial | Encourages indexers to become familiar with the process of syncing a range of subgraphs. | Planned for Service Quality Oracle launch |
-| **Query Response Quality** | *•* Query Response HTTP Status: **200 OK**<br>*•* Query Response Latency: **< 5,000 ms**<br>*•* Query Freshness: **< 50,000 blocks** behind chainhead.<br>*•* Subgraph Curation Signal: **≥ 500 GRT**. | TBD | Initial | *•* Indexer infrastructure needs to serve successful queries to benefit data consumers.<br>*•* Fast query responses are important to data consumers.<br>*•* Encourages indexers to sync to chainhead.<br>*•* Creates a barrier against gaming eligibility requirements. | Planned for Service Quality Oracle launch |
+| **Query Response Quality** | *•* Query Response HTTP Status: **200 OK**<br>*•* Query Response Latency: **< 5,000 ms**<br>*•* Query Freshness: **< 50,000 blocks** behind chainhead. | TBD | Initial | *•* Indexer infrastructure needs to serve successful queries to benefit data consumers.<br>*•* Fast query responses are important to data consumers.<br>*•* Encourages indexers to sync to chainhead. | Planned for Service Quality Oracle launch |
 
 ---
