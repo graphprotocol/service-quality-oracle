@@ -134,5 +134,14 @@ The system follows a clear data pipeline with daily scheduled execution:
 - Docker build must succeed
 - Non-empty PR title and description required
 
+## Security Guidelines
+
+### Sensitive Information Handling
+- **NEVER commit secrets, keys, or credentials** to the repository
+- Always follow security best practices when handling private keys and API tokens
+- Never introduce code that exposes or logs secrets and keys
+- Use environment variables for sensitive configuration (see config.toml.example)
+- Verify that .gitignore properly excludes sensitive files before committing
+
 # Session Context Import
 @./SESSION_CONTEXT.md
