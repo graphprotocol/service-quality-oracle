@@ -59,13 +59,39 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # Fetch more history for proper commit comparison
+          fetch-depth: 0
+
+      - name: Determine scan range
+        id: scan-range
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # For push events, scan from the previous commit to current commit
+            if [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+              echo "base=${{ github.event.before }}" >> $GITHUB_OUTPUT
+              echo "head=${{ github.sha }}" >> $GITHUB_OUTPUT
+            else
+              # New branch or initial commit - scan just the current commit
+              echo "base=HEAD~1" >> $GITHUB_OUTPUT
+              echo "head=HEAD" >> $GITHUB_OUTPUT
+            fi
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            # For PRs, scan from base branch to PR head
+            echo "base=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+            echo "head=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          else
+            # For scheduled runs, scan the last commit only
+            echo "base=HEAD~1" >> $GITHUB_OUTPUT
+            echo "head=HEAD" >> $GITHUB_OUTPUT
+          fi
 
       - name: Scan for secrets
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: main
-          head: HEAD
+          base: ${{ steps.scan-range.outputs.base }}
+          head: ${{ steps.scan-range.outputs.head }}
           extra_args: --only-verified
 
   # =============================================================================
