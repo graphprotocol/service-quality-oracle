@@ -11,6 +11,29 @@ credentials.json
 **/private/
 .secrets
 
+# Kubernetes secrets (never commit actual secrets!)
+k8s/secrets.yaml
+
+# Kubernetes configuration files
+*.kubeconfig
+kubeconfig
+.kube/
+
+# Helm charts
+**/charts/*.tgz
+**/requirements.lock
+**/Chart.lock
+
+# Kustomize builds
+k8s/build/
+kustomization-build.yaml
+
+# Temporary Kubernetes manifests
+*.tmp.yaml
+*.backup.yaml
+k8s/*.tmp
+k8s/*.bak
+
 # Ignore virtual environments
 venv/
 

@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-quality-oracle
+  labels:
+    app: service-quality-oracle
+spec:
+  replicas: 1  # Single instance due to state management
+  selector:
+    matchLabels:
+      app: service-quality-oracle
+  template:
+    metadata:
+      labels:
+        app: service-quality-oracle
+    spec:
+      containers:
+      - name: service-quality-oracle
+        image: ghcr.io/graphprotocol/service-quality-oracle:latest
+        envFrom:
+        # Load all non-sensitive configuration from ConfigMap
+        - configMapRef:
+            name: service-quality-oracle-config
+        env:
+        # Secrets from Kubernetes Secret
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          valueFrom:
+            secretKeyRef:
+              name: service-quality-oracle-secrets
+              key: google-credentials
+        - name: BLOCKCHAIN_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: service-quality-oracle-secrets
+              key: blockchain-private-key
+        - name: ETHERSCAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: service-quality-oracle-secrets
+              key: etherscan-api-key
+        - name: ARBITRUM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: service-quality-oracle-secrets
+              key: arbitrum-api-key
+        - name: STUDIO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: service-quality-oracle-secrets
+              key: studio-api-key
+        - name: STUDIO_DEPLOY_KEY
+          valueFrom:
+            secretKeyRef:
+              name: service-quality-oracle-secrets
+              key: studio-deploy-key
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: service-quality-oracle-secrets
+              key: slack-webhook-url
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        - name: logs-volume
+          mountPath: /app/logs
+        resources:
+          requests:
+            memory: "512M"  # Match docker-compose reservations
+            cpu: "250m"
+          limits:
+            memory: "1G"    # Match docker-compose limits  
+            cpu: "1000m"    # Match docker-compose '1.0' cpus
+        # Use file-based healthcheck like docker-compose (not HTTP)
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import os, time; assert os.path.exists('/app/healthcheck') and time.time() - os.path.getmtime('/app/healthcheck') < 300, 'Healthcheck failed'"
+          initialDelaySeconds: 60  # Match docker-compose start_period
+          periodSeconds: 120       # Match docker-compose interval (5m -> 300s, but use 2m for faster detection)
+          timeoutSeconds: 30       # Match docker-compose timeout
+          failureThreshold: 3      # Match docker-compose retries
+        readinessProbe:
+          exec:
+            command:
+            - python  
+            - -c
+            - "import os; assert os.path.exists('/app/healthcheck'), 'Healthcheck file missing'"
+          initialDelaySeconds: 10
+          periodSeconds: 30
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: service-quality-oracle-data
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: service-quality-oracle-logs
+      restartPolicy: Always
