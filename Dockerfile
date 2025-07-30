@@ -3,9 +3,12 @@
 # Use Python 3.9 slim as the base image for a lightweight container
 FROM python:3.11-slim
 
+# Accept version as build argument
+ARG VERSION=dev
+
 # Add metadata labels
 LABEL description="Service Quality Oracle" \
-      version="0.1.0"
+      version="${VERSION}"
 
 # Set working directory
 WORKDIR /app
