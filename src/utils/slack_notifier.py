@@ -130,8 +130,26 @@ class SlackNotifier:
 
         # Add transaction links if provided
         if transaction_links:
-            tx_links = "\n".join([f"Batch {i + 1}: {link}" for i, link in enumerate(transaction_links)])
-            fields.append({"title": "Transactions", "value": tx_links, "short": False})
+            tx_links = []
+
+            # For each transaction link, extract the transaction hash from the URL
+            for i, link in enumerate(transaction_links):
+                try:
+                    if "/tx/" in link:
+                        tx_hash = link.split("/tx/")[-1]
+                        tx_links.append(f"Batch {i + 1}: <{link}|{tx_hash}>")
+
+                    # Fallback: show the full link if format is unexpected
+                    else:
+                        tx_links.append(f"Batch {i + 1}: {link}")
+
+                # If transaction link not in expected format, add full link to list
+                except Exception as e:
+                    logger.warning(f"Failed to format transaction link: {link}, error: {e}")
+                    tx_links.append(f"Batch {i + 1}: {link}")
+
+            # Add the list of transaction links to the fields
+            fields.append({"title": "Transactions", "value": "\n".join(tx_links), "short": False})
 
         # Create message payload
         payload = self._create_payload("Service Quality Oracle - Success", fields, "good")
@@ -180,8 +198,26 @@ class SlackNotifier:
 
         # Add partial transaction links if any succeeded before failure
         if partial_transaction_links:
-            tx_links = "\n".join([f"Batch {i + 1}: {link}" for i, link in enumerate(partial_transaction_links)])
-            fields.append({"title": "Partial Transactions", "value": tx_links, "short": False})
+            tx_links = []
+
+            # For each partial transaction link, extract the transaction hash from the URL
+            for i, link in enumerate(partial_transaction_links):
+                try:
+                    if "/tx/" in link:
+                        tx_hash = link.split("/tx/")[-1]
+                        tx_links.append(f"Batch {i + 1}: <{link}|{tx_hash}>")
+
+                    # Fallback: show the full link if format is unexpected
+                    else:
+                        tx_links.append(f"Batch {i + 1}: {link}")
+
+                # If transaction link not in expected format, add full link to list
+                except Exception as e:
+                    logger.warning(f"Failed to format transaction link: {link}, error: {e}")
+                    tx_links.append(f"Batch {i + 1}: {link}")
+
+            # Add the list of partial transaction links to the fields
+            fields.append({"title": "Partial Transactions", "value": "\n".join(tx_links), "short": False})
 
         # Truncate error message if too long
         error_text = error_message[:1000] + "..." if len(error_message) > 1000 else error_message

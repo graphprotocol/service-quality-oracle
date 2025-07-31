@@ -632,7 +632,8 @@ class BlockchainClient:
                     data_bytes,
                 )
                 tx_hash = "0x" + tx_hash
-                transaction_hashes.append(tx_hash)
+                tx_url = f"{self.block_explorer_url}/tx/{tx_hash}"
+                transaction_hashes.append(tx_url)
                 logger.info(f"Successfully sent batch {i // batch_size + 1}, tx_hash: {tx_hash}")
 
             except Exception as e:

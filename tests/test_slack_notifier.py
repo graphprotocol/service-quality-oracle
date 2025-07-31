@@ -103,7 +103,7 @@ def test_send_success_notification_builds_correct_payload(mock_requests: MagicMo
     assert fields["Status"] == "Successfully completed"
     assert fields["Eligible Indexers"] == "1"
     assert "123.4" in fields["Execution Time"]
-    assert "Batch 1: http://etherscan.io/tx/1" in fields["Transactions"]
+    assert "Batch 1: <http://etherscan.io/tx/1|1>" in fields["Transactions"]
 
 
 def test_send_failure_notification_builds_correct_payload(mock_requests: MagicMock):
