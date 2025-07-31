@@ -1,0 +1,33 @@
+# CODEOWNERS file for service-quality-oracle
+# This file defines who will be requested for review when someone opens a pull request
+
+# Default owners for everything in the repo
+* @MoonBoi9001
+
+# Python source files
+*.py @MoonBoi9001
+/src/ @MoonBoi9001
+/tests/ @MoonBoi9001
+
+# Configuration files
+*.toml @MoonBoi9001
+*.yml @MoonBoi9001
+*.yaml @MoonBoi9001
+
+# Docker files
+Dockerfile @MoonBoi9001
+docker-compose.yml @MoonBoi9001
+
+# Documentation
+*.md @MoonBoi9001
+/docs/ @MoonBoi9001
+
+# Smart contracts
+/contracts/ @MoonBoi9001
+*.sol @MoonBoi9001
+
+# CI/CD workflows
+/.github/workflows/ @MoonBoi9001
+
+# Kubernetes configurations
+/k8s/ @MoonBoi9001
