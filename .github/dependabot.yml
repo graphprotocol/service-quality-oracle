@@ -9,8 +9,6 @@ updates:
       time: "09:00"
       timezone: "UTC"
     open-pull-requests-limit: 10
-    reviewers:
-      - "MoonBoi9001"
     labels:
       - "dependencies"
       - "docker"
@@ -27,8 +25,6 @@ updates:
       time: "09:00"
       timezone: "UTC"
     open-pull-requests-limit: 10
-    reviewers:
-      - "MoonBoi9001"
     labels:
       - "dependencies"
       - "python"
@@ -53,8 +49,6 @@ updates:
       time: "09:00" 
       timezone: "UTC"
     open-pull-requests-limit: 10
-    reviewers:
-      - "MoonBoi9001"
     labels:
       - "dependencies"
       - "github-actions"
