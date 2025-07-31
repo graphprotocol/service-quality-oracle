@@ -173,3 +173,6 @@ The system follows a clear data pipeline with daily scheduled execution:
 
 # Session Context Import
 @./SESSION_CONTEXT.md
+
+# Style Guidelines Import
+@./STYLE_GUIDELINES.md
