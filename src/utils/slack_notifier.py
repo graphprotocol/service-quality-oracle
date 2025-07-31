@@ -132,7 +132,7 @@ class SlackNotifier:
         if transaction_links:
             tx_links = []
 
-            # For each transaction link, extract the transaction hash from the URL and add it to the list of transaction links
+            # For each transaction link, extract the transaction hash from the URL
             for i, link in enumerate(transaction_links):
                 try:
                     if "/tx/" in link:
@@ -143,7 +143,7 @@ class SlackNotifier:
                     else:
                         tx_links.append(f"Batch {i + 1}: {link}")
 
-                # If the transaction link is not in the expected format, add the full link to the list of transaction links
+                # If transaction link not in expected format, add full link to list
                 except Exception as e:
                     logger.warning(f"Failed to format transaction link: {link}, error: {e}")
                     tx_links.append(f"Batch {i + 1}: {link}")
@@ -200,7 +200,7 @@ class SlackNotifier:
         if partial_transaction_links:
             tx_links = []
 
-            # For each partial transaction link, extract the transaction hash from the URL and add it to the list
+            # For each partial transaction link, extract the transaction hash from the URL
             for i, link in enumerate(partial_transaction_links):
                 try:
                     if "/tx/" in link:
@@ -211,7 +211,7 @@ class SlackNotifier:
                     else:
                         tx_links.append(f"Batch {i + 1}: {link}")
 
-                # If the transaction link is not in the expected format, add the full link to the list of transaction links
+                # If transaction link not in expected format, add full link to list
                 except Exception as e:
                     logger.warning(f"Failed to format transaction link: {link}, error: {e}")
                     tx_links.append(f"Batch {i + 1}: {link}")
